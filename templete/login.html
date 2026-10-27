@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Student Management System</title>
+
+    <!-- Flask Static Paths -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+    <main class="page-container">
+        <section class="login-card">
+            <div class="brand-symbol">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="heading">
+                <h1>Sign in to your account</h1>
+            </div>
+
+            <form id="loginForm" novalidate>
+                <div class="form-group">
+                    <label for="username">User name</label>
+                    <div class="input-container" id="emailContainer">
+                        <i class="fa-regular fa-user input-icon"></i>
+                        <input type="text" id="username" name="username" placeholder="Enter your username"
+                            autocomplete="username" maxlength="150" required>
+                    </div>
+                    <small class="error-message" id="emailError"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-container" id="passwordContainer">
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <input type="password" id="password" name="password" placeholder="Enter your password"
+                            autocomplete="current-password" required>
+                        <button type="button" class="toggle-password" id="togglePassword" aria-label="Show password" aria-pressed="false">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                    <small class="error-message" id="passwordError"></small>
+                </div>
+
+                <div class="form-options">
+                    <label class="remember-option">
+                        <input type="checkbox" id="rememberUsername">
+                        <span>Remember username</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="sign-in-button" id="signInButton">
+                    <span id="buttonText">Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+                <div id="loginMessage" class="login-message" role="status" aria-live="polite"></div>
+            </form>
+
+            <footer class="card-footer">
+                <i class="fa-solid fa-lock"></i>
+                Secure authentication · Authorized users only
+            </footer>
+        </section>
+
+        <p class="page-footer">
+            Secure access to your workspace
+        </p>
+    </main>
+
+    <!-- Flask Static Path -->
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+</html>

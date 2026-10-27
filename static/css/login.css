@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+:root {
+    --navy: #172B4D;
+    --blue: #315B91;
+    --blue-hover: #254875;
+    --background: #F2F4F7;
+    --text: #252F3F;
+    --muted: #788395;
+    --border: #DCE2EA;
+    --white: #FFFFFF;
+    --danger: #C03945;
+}
+
+* {margin: 0;padding: 0;box-sizing: border-box;}
+
+body {
+    min-height: 100vh;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    background:
+    radial-gradient(ellipse at 15% 10%, #E2E8F1 0%, transparent 48%),
+    radial-gradient(ellipse at 90% 90%, #E0E6EF 0%, transparent 45%),
+    var(--background);
+}
+
+.page-container {min-height: 100vh;display: flex;flex-direction: column;justify-content: center;align-items: center;padding: 35px 18px 20px;}
+
+.login-card {
+    width: 100%;
+    max-width: 440px;
+    padding: 40px 42px 28px;
+    background: var(--white);
+    border: 1px solid #E6E9EF;
+    border-radius: 12px;
+    box-shadow: 0 16px 45px rgba(27, 43, 68, 0.09);
+    animation: fadeIn 0.5s ease-out;
+}
+
+.brand-symbol {width: 54px;height: 54px;margin: 0 auto 24px;display: flex;justify-content: center;align-items: center;background: var(--navy);color: white;border-radius: 12px;font-size: 23px;box-shadow: 0 5px 12px rgba(23, 43, 77, 0.16);}
+
+.heading {text-align: center;margin-bottom: 30px;}
+.heading h1 {font-family: 'Playfair Display', Georgia, serif;font-size: 27px;line-height: 1.35;font-weight: 700;color: var(--navy);}
+
+.form-group {margin-bottom: 21px;}
+.form-group > label {display: block;margin-bottom: 9px;font-size: 12px;font-weight: 700;color: #374151;}
+
+.input-container {width: 100%;height: 48px;display: flex;align-items: center;gap: 12px;padding: 0 13px;background: #fff;border: 1px solid var(--border);border-radius: 7px;transition: border-color 0.2s, box-shadow 0.2s;}
+.input-container:focus-within {border-color: var(--blue);box-shadow: 0 0 0 3px rgba(49, 91, 145, 0.10);}
+.input-container.invalid {border-color: var(--danger);}
+
+.input-icon {color: #8490A1;font-size: 14px;}
+
+.input-container input {width: 100%;min-width: 0;height: 100%;border: none;outline: none;background: transparent;color: var(--text);font: 12px 'DM Sans', sans-serif;}
+.input-container input::placeholder {color: #A0A8B5;}
+
+.toggle-password {border: none;background: transparent;color: #7E8999;cursor: pointer;padding: 7px;font-size: 14px;}
+.toggle-password:hover {color: var(--blue);}
+
+.form-options {display: flex;align-items: center;margin: 2px 0 23px;}
+.remember-option {display: flex;align-items: center;gap: 8px;cursor: pointer;font-size: 11px;color: #687487;}
+.remember-option input {width: 14px;height: 14px;accent-color: var(--blue);cursor: pointer;}
+
+.sign-in-button {width: 100%;min-height: 48px;display: flex;align-items: center;justify-content: center;gap: 12px;border: 1px solid var(--navy);border-radius: 7px;background: var(--navy);color: white;font: 600 13px 'DM Sans', sans-serif;cursor: pointer;transition: background 0.2s, transform 0.2s;}
+.sign-in-button:hover {background: var(--blue-hover);transform: translateY(-1px);}
+.sign-in-button:focus-visible {outline: 3px solid #A6BDDC;outline-offset: 3px;}
+.sign-in-button:disabled {opacity: 0.75;cursor: wait;transform: none;}
+.sign-in-button i {font-size: 12px;}
+
+.error-message {display: block;margin-top: 6px;color: var(--danger);font-size: 10px;}
+.error-message:empty {display: none;}
+
+.login-message {margin-top: 12px;font-size: 11px;line-height: 1.6;text-align: center;}
+.login-message:empty {display: none;}
+.login-message.error {color: var(--danger);}
+.login-message.success {color: #267447;}
+
+.card-footer {display: flex;align-items: center;justify-content: center;gap: 7px;margin-top: 23px;padding-top: 18px;border-top: 1px solid #EDF0F4;color: #929BAA;font-size: 9px;}
+.card-footer i {color: #537C68;}
+
+.page-footer {margin-top: 20px;color: #8A94A3;font-size: 10px;letter-spacing: 0.3px;}
+
+@keyframes fadeIn {
+    from {opacity: 0;transform: translateY(8px);}
+    to {opacity: 1;transform: translateY(0);}
+}
+
+@media (max-width: 480px) {
+    .page-container {padding: 20px 14px;}
+    .login-card {padding: 32px 23px 24px;}
+    .heading h1 {font-size: 24px;}
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {animation: none !important;transition: none !important;}
+}

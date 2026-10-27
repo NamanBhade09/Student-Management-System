@@ -1,0 +1,37 @@
+{% extends 'base_student.html' %}
+{% block title %}Performance{% endblock %}
+{% block page_title %}My Performance{% endblock %}
+{% block breadcrumb %}Performance{% endblock %}
+
+{% block content %}
+<div class="header-row" style="margin-bottom:20px;">
+    <div class="welcome-text">
+        <span class="eyebrow">LAST 30 DAYS</span>
+        <h2>Performance overview</h2>
+        <p>Score = 60% attendance + 40% task completion. Weekends, holidays and approved leave are not counted against you.</p>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Overall score</span><div class="stat-value">{{ p.overall }}%</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Grade</span>
+        <div class="stat-value {% if p.grade in ['A','B'] %}text-green{% elif p.grade in ['D','F'] %}grade-low{% endif %}">{{ p.grade }}</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Average clock-in</span><div class="stat-value">{{ p.avg_login }}</div></div></div>
+</div>
+
+<div class="perf-grid">
+    <div class="content-card">
+        <span class="eyebrow">ATTENDANCE</span>
+        <h3>{{ p.attendance_pct }}%</h3>
+        <div class="progress"><div class="progress-fill" style="width: {{ p.attendance_pct }}%"></div></div>
+        <p class="card-desc" style="margin-top:12px;">Attended {{ p.attended }} of {{ p.expected }} expected working days.</p>
+        <p class="card-desc">Absent without leave: <strong>{{ p.absent }}</strong> &nbsp;·&nbsp; Approved leaves: <strong>{{ p.leaves }}</strong></p>
+    </div>
+    <div class="content-card">
+        <span class="eyebrow">TASKS</span>
+        <h3>{% if p.task_pct is none %}No tasks yet{% else %}{{ p.task_pct }}%{% endif %}</h3>
+        <div class="progress"><div class="progress-fill" style="width: {{ p.task_pct or 0 }}%"></div></div>
+        <p class="card-desc" style="margin-top:12px;">Completed: <strong>{{ p.completed }}</strong> &nbsp;·&nbsp; Remaining: <strong>{{ p.remaining }}</strong></p>
+    </div>
+</div>
+{% endblock %}

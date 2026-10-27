@@ -1,0 +1,40 @@
+{% extends 'base_student.html' %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance records{% endblock %}
+{% block breadcrumb %}Attendance{% endblock %}
+
+{% block content %}
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Days recorded</span><div class="stat-value">{{ days_recorded }}</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Total hours</span><div class="stat-value">{{ total_hours }}</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Today's duration</span><div class="stat-value text-green">{{ today_duration }}</div></div></div>
+</div>
+
+<div class="content-card">
+    <div class="card-header">
+        <div>
+            <span class="eyebrow">HISTORY</span>
+            <h3>Daily attendance log</h3>
+        </div>
+        <a class="btn btn-secondary" href="/attendance/export" style="text-decoration:none;"><i class="fa-solid fa-download"></i> Export CSV</a>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr><th>DATE</th><th>CLOCK IN (IST)</th><th>CLOCK OUT (IST)</th><th>DURATION</th><th>STATUS</th></tr>
+        </thead>
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ r.date.strftime('%d %b %Y') }}</td>
+                <td>{{ r.clock_in_time.strftime('%I:%M:%S %p').lower() }}</td>
+                <td>{{ r.clock_out_time.strftime('%I:%M:%S %p').lower() if r.clock_out_time else '--:--:--' }}</td>
+                <td>{{ r.working_hours if r.working_hours else '00:00:00' }}</td>
+                <td><span class="badge {% if r.clock_out_time %}completed{% else %}in_progress{% endif %}">{{ 'Complete' if r.clock_out_time else 'Active' }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align: center; color: #64748B;">No attendance records found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'base_student.html' %}
+{% block title %}Security{% endblock %}
+{% block page_title %}Account Security{% endblock %}
+{% block breadcrumb %}Security{% endblock %}
+
+{% block content %}
+<div class="content-card" style="max-width:480px;">
+    <span class="eyebrow">PASSWORD</span>
+    <h3>Change your password</h3>
+    <form id="pwForm" style="margin-top:20px;">
+        <label for="curPw">Current password</label>
+        <input type="password" id="curPw" autocomplete="current-password" required>
+        <label for="newPw" style="margin-top:10px;">New password (min 8 characters)</label>
+        <input type="password" id="newPw" autocomplete="new-password" minlength="8" required>
+        <label for="confPw" style="margin-top:10px;">Confirm new password</label>
+        <input type="password" id="confPw" autocomplete="new-password" required>
+        <button type="submit" class="btn btn-primary" style="margin-top:15px;">Update password</button>
+        <p id="pwMessage" role="status" aria-live="polite" style="margin-top:10px;font-size:.85rem;"></p>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('pwForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const msg = document.getElementById('pwMessage');
+        const btn = e.currentTarget.querySelector('button');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/change_password', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    current_password: document.getElementById('curPw').value,
+                    new_password: document.getElementById('newPw').value,
+                    confirm_password: document.getElementById('confPw').value
+                })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Could not update password.');
+            msg.style.color = '#10B981';
+            msg.textContent = 'Password updated.';
+            e.target.reset();
+        } catch (err) {
+            msg.style.color = '#EF4444';
+            msg.textContent = err.message || 'Server error. Please try again.';
+        } finally { btn.disabled = false; }
+    });
+</script>
+{% endblock %}

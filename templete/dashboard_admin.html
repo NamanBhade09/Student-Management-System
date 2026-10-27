@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Management – Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashborad_admin.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">EduManage<small>Admin panel</small></div>
+    <nav id="nav">
+      <button data-page="dashboard" class="active">Dashboard</button>
+      <button data-page="leaves">Leave approvals</button>
+      <button data-page="attendance">Attendance</button>
+      <button data-page="tasks">Tasks</button>
+      <button data-page="holidays">Holidays</button>
+      <button data-page="students">Students</button>
+      <button data-page="password">Password</button>
+      <a href="/logout" style="display:block; padding: 12px 20px; color: #ff5e5e; text-decoration: none; font-weight: bold; margin-top: 20px;">Logout</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar"><h1 id="pageTitle">Dashboard</h1><span id="todayLabel"></span><span id="adminMessage" role="status" aria-live="polite"></span></header>
+
+    <section id="dashboard" class="page active">
+      <div class="stats" id="stats"></div>
+      <div class="card"><h2>Pending leave requests</h2><div id="dashLeaves"></div></div>
+    </section>
+
+    <section id="leaves" class="page">
+      <div class="card"><table><thead><tr>
+        <th>Student</th><th>Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th>
+      </tr></thead><tbody id="leaveBody"></tbody></table></div>
+    </section>
+
+    <section id="attendance" class="page">
+      <div class="card">
+        <div class="bar">
+          <label>Month <input type="month" id="attMonth"></label>
+          <span class="legend">Select a cell to cycle through Present, Absent, Late, Half-day and unset.</span>
+        </div>
+        <div class="scroll"><table id="attTable" class="att"></table></div>
+      </div>
+    </section>
+
+    <section id="tasks" class="page">
+      <div class="card">
+        <form id="taskForm" class="bar">
+          <select id="taskStudent" required><option value="">Choose student</option></select>
+          <input id="taskTitle" placeholder="New task" maxlength="255" required>
+          <input id="taskDescription" placeholder="Description (optional)">
+          <input id="taskDue" type="date" required>
+          <button class="btn" type="submit">Assign task</button>
+        </form>
+        <table><thead><tr><th>Task</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="taskBody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="holidays" class="page">
+      <div class="card">
+        <div class="bar">
+          <button class="btn ghost" id="prev">&#8249;</button>
+          <strong id="holMonth"></strong>
+          <button class="btn ghost" id="next">&#8250;</button>
+        </div>
+        <div class="cal-head"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
+        <div id="holGrid" class="cal-grid"></div>
+      </div>
+    </section>
+
+    <section id="students" class="page">
+      <div class="card">
+        <h2 id="stuFormTitle">Add student</h2>
+        <form id="stuForm" class="bar">
+          <input id="sUser" placeholder="Username" maxlength="100" required>
+          <input id="sPass" type="password" placeholder="Password (min 8)" maxlength="128" autocomplete="new-password" required>
+          <input id="sFirst" placeholder="First name" maxlength="50" required>
+          <input id="sLast" placeholder="Last name" maxlength="50" required>
+          <input id="sEmail" type="email" placeholder="Email" maxlength="100" required>
+          <input id="sMobile" placeholder="Mobile (digits)" maxlength="15">
+          <select id="sGender"><option value="">Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
+          <label>DOB <input id="sDob" type="date"></label>
+          <input id="sCity" placeholder="City" maxlength="50" required>
+          <button class="btn" type="submit" id="stuSubmit">Add student</button>
+          <button class="btn ghost" type="button" id="stuCancel" hidden>Cancel</button>
+        </form>
+      </div>
+      <div class="card">
+        <table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>City</th><th></th></tr></thead><tbody id="stuBody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="password" class="page">
+      <div class="card" style="max-width:420px">
+        <h2>Change my password</h2>
+        <form id="pwForm" style="display:grid;gap:10px">
+          <input id="curPw" type="password" placeholder="Current password" autocomplete="current-password" required>
+          <input id="newPw" type="password" placeholder="New password (min 8)" autocomplete="new-password" required>
+          <input id="confPw" type="password" placeholder="Confirm new password" autocomplete="new-password" required>
+          <button class="btn" type="submit">Update password</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/dashboard_admin.js') }}"></script>
+</body>
+</html>

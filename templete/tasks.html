@@ -1,0 +1,133 @@
+{% extends 'base_student.html' %}
+{% block title %}Tasks{% endblock %}
+{% block page_title %}My Tasks{% endblock %}
+{% block breadcrumb %}Tasks{% endblock %}
+
+{% block content %}
+<div class="header-row" style="align-items: center;">
+    <div class="welcome-text">
+        <h2>My tasks</h2>
+        <p>Track work assigned to you and update your progress.</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('addTaskForm').style.display='block'"><i class="fa-solid fa-plus"></i> Add personal task</button>
+</div>
+
+<div class="content-card" id="addTaskForm" style="display:none; margin-bottom: 20px;">
+    <h3>Add New Task</h3>
+    <div style="display:flex; gap: 10px; margin-top: 10px;">
+        <input type="text" id="newTaskTitle" maxlength="255" placeholder="Task title..." style="flex:1; padding: 10px; border: 1px solid #E2E8F0; border-radius: 8px;">
+        <button class="btn btn-primary" onclick="submitTask()">Save</button>
+    </div>
+</div>
+
+<p id="taskMessage" role="status" aria-live="polite"></p>
+
+<div class="content-card">
+    <div class="task-list" id="taskList">
+        {% for task in tasks %}
+        <div class="task-item" data-task-id="{{ task.task_id }}" style="background: white; border-bottom: 1px solid #E2E8F0; padding: 15px; display:flex; align-items:center; gap: 15px;">
+            <input type="checkbox" {% if task.status == 'completed' %}checked{% endif %} onclick="toggleTask({{ task.task_id }}, this)">
+            <div class="task-info" style="flex:1;">
+                <strong data-task-title style="{% if task.status == 'completed' %}text-decoration: line-through; color: #94A3B8;{% endif %}">{{ task.title }}</strong>
+                <span data-task-due style="font-size: 0.8rem; color: #64748B;">Due: {{ task.due_date.strftime('%d %b %Y') }}</span>
+            </div>
+            <span class="badge {{ task.status }}" data-task-status>{{ task.status | replace('_', ' ') | title }}</span>
+        </div>
+        {% else %}
+        <div class="empty-state"><p>No tasks found.</p></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function submitTask() {
+        const title = document.getElementById('newTaskTitle').value;
+        const message = document.getElementById('taskMessage');
+        if (!title.trim()) {
+            message.textContent = "Enter a task title.";
+            return;
+        }
+        const button = document.querySelector('#addTaskForm button');
+        button.disabled = true;
+        try {
+            const res = await fetch('/api/add_task', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: title})
+            });
+            const result = await res.json();
+            if (!res.ok || !result.success) throw new Error(result.message || "Could not add task.");
+            document.querySelector('#taskList .empty-state')?.remove();
+            const row = createTaskRow(result.task_id, title.trim(), result.due_date);
+            document.getElementById('taskList').appendChild(row);
+            document.getElementById('newTaskTitle').value = '';
+            message.textContent = "Task added.";
+        } catch (error) {
+            message.textContent = error.message || "Server error. Please try again.";
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function createTaskRow(id, title, dueDate) {
+        const row = document.createElement('div');
+        row.className = 'task-item';
+        row.dataset.taskId = id;
+        row.style.cssText = 'background:white;border-bottom:1px solid #E2E8F0;padding:15px;display:flex;align-items:center;gap:15px;';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.addEventListener('click', () => toggleTask(id, checkbox));
+
+        const info = document.createElement('div');
+        info.className = 'task-info';
+        info.style.flex = '1';
+        const taskTitle = document.createElement('strong');
+        taskTitle.dataset.taskTitle = '';
+        taskTitle.textContent = title;
+        const due = document.createElement('span');
+        due.dataset.taskDue = '';
+        due.style.cssText = 'font-size:0.8rem;color:#64748B;';
+        due.textContent = `Due: ${new Date(`${dueDate}T00:00:00`).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})}`;
+        info.append(taskTitle, due);
+
+        const status = document.createElement('span');
+        status.className = 'badge pending';
+        status.dataset.taskStatus = '';
+        status.textContent = 'Pending';
+        row.append(checkbox, info, status);
+        return row;
+    }
+
+    function updateTaskRow(row, completed) {
+        const title = row.querySelector('[data-task-title]');
+        const badge = row.querySelector('[data-task-status]');
+        title.style.textDecoration = completed ? 'line-through' : '';
+        title.style.color = completed ? '#94A3B8' : '';
+        badge.className = `badge ${completed ? 'completed' : 'pending'}`;
+        badge.textContent = completed ? 'Completed' : 'Pending';
+    }
+
+    async function toggleTask(id, checkbox) {
+        const status = checkbox.checked ? 'completed' : 'pending';
+        const message = document.getElementById('taskMessage');
+        const row = checkbox.closest('[data-task-id]');
+        checkbox.disabled = true;
+        try {
+            const response = await fetch('/api/update_task', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({task_id: id, status: status})
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || "Could not update task.");
+            updateTaskRow(row, status === 'completed');
+            message.textContent = "Task status updated.";
+        } catch (error) {
+            checkbox.checked = !checkbox.checked;
+            checkbox.disabled = false;
+            message.textContent = error.message || "Server error. Please try again.";
+        }
+    }
+</script>
+{% endblock %}

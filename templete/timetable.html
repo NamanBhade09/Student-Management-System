@@ -1,0 +1,58 @@
+{% extends 'base_student.html' %}
+{% block title %}Timetable{% endblock %}
+{% block page_title %}My Timetable{% endblock %}
+{% block breadcrumb %}Timetable{% endblock %}
+
+{% block content %}
+<div class="content-card" style="margin-bottom:20px;">
+    <span class="eyebrow">NEW ENTRY</span>
+    <h3>Add a time slot</h3>
+    <form id="ttForm" class="inline-form">
+        <select id="ttDay" required>
+            {% for d in days %}<option {% if d == today %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select>
+        <input type="text" id="ttSlot" maxlength="255" placeholder="e.g. 9:00 AM - 10:00 AM  Mathematics" required>
+        <button type="submit" class="btn btn-primary">Add</button>
+    </form>
+    <p id="ttMessage" role="status" aria-live="polite" class="card-desc"></p>
+</div>
+
+<div class="tt-grid">
+    {% for day, slots in grouped %}
+    <div class="content-card {% if day == today %}tt-today{% endif %}">
+        <span class="eyebrow">{{ day }}{% if day == today %} · TODAY{% endif %}</span>
+        {% for s in slots %}
+        <div class="tt-slot">
+            <span>{{ s.time_slots }}</span>
+            <button class="btn-icon" title="Remove" onclick="removeSlot({{ s.timetable_id }})"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        {% else %}
+        <p class="card-desc">Nothing scheduled.</p>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function post(url, body) {
+        const msg = document.getElementById('ttMessage');
+        try {
+            const res = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Request failed.');
+            window.location.reload();
+        } catch (e) {
+            msg.textContent = e.message || 'Server error. Please try again.';
+        }
+    }
+    document.getElementById('ttForm').addEventListener('submit', e => {
+        e.preventDefault();
+        post('/api/timetable/add', {day_of_week: document.getElementById('ttDay').value, time_slots: document.getElementById('ttSlot').value});
+    });
+    function removeSlot(id) {
+        if (confirm('Remove this time slot?')) post('/api/timetable/delete', {timetable_id: id});
+    }
+</script>
+{% endblock %}

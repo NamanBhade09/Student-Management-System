@@ -1,0 +1,127 @@
+{% extends 'base_student.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="header-row">
+    <div class="welcome-text">
+        <span class="eyebrow">STUDENT WORKSPACE</span>
+        <h2>Good day, {{ username }}!</h2>
+        <p>Here is your academic and attendance overview.</p>
+    </div>
+    
+    <div class="clock-widget">
+        <span class="timezone">INDIAN STANDARD TIME (IST)</span>
+        <div class="live-time" id="liveTime">--:--:--</div>
+        <div class="live-date" id="liveDate">--</div>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="icon-box bg-light-blue"><i class="fa-solid fa-list-ul"></i></div>
+        <div class="stat-info">
+            <span class="stat-label">My tasks</span>
+            <div class="stat-value">{{ remaining_tasks }}</div>
+            <span class="stat-sub">{{ completed_tasks }} completed</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="icon-box bg-light-green"><i class="fa-regular fa-calendar-check"></i></div>
+        <div class="stat-info">
+            <span class="stat-label">Leave requests</span>
+            <div class="stat-value">{{ total_leaves }}</div>
+            <span class="stat-sub">{{ pending_leaves }} pending</span>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="icon-box bg-light-orange"><i class="fa-solid fa-user-clock"></i></div>
+        <div class="stat-info">
+            <span class="stat-label">Today's attendance</span>
+            <div class="stat-value {% if att_status == 'Completed' %}text-green{% elif att_status == 'In Progress' %}text-blue{% endif %}" id="attendanceStatus">{{ att_status }}</div>
+            <span class="stat-sub" id="attendanceSub">{{ att_sub }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="middle-grid">
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <span class="eyebrow">TIME TRACKING</span>
+                <h3>Daily attendance</h3>
+                <p class="card-desc">Record your workday start and finish. Times use the Asia/Kolkata time zone.</p>
+            </div>
+            <div class="live-badge">Live · IST</div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="btnClockIn" onclick="handleClockIn()"><i class="fa-solid fa-play"></i> Clock In</button>
+            <button class="btn btn-secondary" id="btnClockOut" onclick="handleClockOut()"><i class="fa-solid fa-stop"></i> Clock Out</button>
+        </div>
+
+        <div class="time-stats">
+            <div class="time-block"><span>Clock in</span><strong id="uiClockIn">{{ clock_in }}</strong></div>
+            <div class="time-block"><span>Clock out</span><strong id="uiClockOut">{{ clock_out }}</strong></div>
+            <div class="time-block"><span>Duration today</span><strong id="uiDuration">{{ duration }}</strong></div>
+        </div>
+        <div class="tracking-message" id="trackingMessage">
+            {% if att_status == 'Completed' %} Clock-out recorded successfully.
+            {% elif att_status == 'In Progress' %} You are currently clocked in.
+            {% else %} Click "Clock In" to start your day. {% endif %}
+        </div>
+    </div>
+
+    <div class="content-card">
+        <div class="card-header">
+            <div>
+                <span class="eyebrow">UP NEXT</span>
+                <h3>Upcoming holidays</h3>
+            </div>
+            <a href="/calendar" class="link">View calendar <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+        <div class="task-list">
+            {% for holiday in upcoming_holidays %}
+            <div class="task-item">
+                <div class="task-info"><strong>{{ holiday[0] }}</strong><span>{{ holiday[1] }}</span></div>
+            </div>
+            {% else %}
+            <div class="empty-state"><p>No upcoming holidays have been added.</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="bottom-section">
+    <div class="card-header">
+        <div>
+            <span class="eyebrow">MY WORK</span>
+            <h3>Task overview</h3>
+        </div>
+        <a href="/tasks" class="link">Open tasks <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    
+    <div class="task-list">
+        {% if recent_tasks %}
+            {% for task in recent_tasks %}
+            <div class="task-item">
+                <div class="task-info">
+                    <strong>{{ task.title }}</strong>
+                    <span>Due: {{ task.due_date }}</span>
+                </div>
+                <span class="badge {{ task.status }}">{{ task.status | replace('_', ' ') | title }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="padding: 20px 0;"><p>No tasks added yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/dashboard_student.js') }}"></script>
+{% endblock %}

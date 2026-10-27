@@ -1,0 +1,88 @@
+{% extends 'base_student.html' %}
+{% block title %}Leave{% endblock %}
+{% block page_title %}Leave Management{% endblock %}
+{% block breadcrumb %}Leave{% endblock %}
+
+{% block content %}
+<div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Total requests</span><div class="stat-value">{{ total }}</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Pending</span><div class="stat-value">{{ pending }}</div></div></div>
+    <div class="stat-card"><div class="stat-info"><span class="stat-label">Approved</span><div class="stat-value">{{ approved }}</div></div></div>
+</div>
+
+<div class="leave-layout">
+    <div class="content-card">
+        <span class="eyebrow">NEW REQUEST</span>
+        <h3>Apply for leave</h3>
+        <form id="leaveForm" style="margin-top: 20px;">
+            <label>Leave type</label>
+            <select id="leaveType" required><option value="">Choose a type</option><option>Sick Leave</option><option>Casual Leave</option></select>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <div style="flex:1"><label>Start date</label><input id="leaveStart" type="date" required></div>
+                <div style="flex:1"><label>End date</label><input id="leaveEnd" type="date" required></div>
+            </div>
+            <label style="margin-top:10px;">Reason</label>
+            <textarea id="leaveReason" rows="3" placeholder="Briefly explain your request"></textarea>
+            <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Submit request</button>
+            <p id="leaveMessage" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+
+    <div class="content-card">
+        <span class="eyebrow">REQUEST HISTORY</span>
+        <h3>My leave requests</h3>
+        <table class="data-table" style="margin-top: 20px;">
+            <thead><tr><th>Type</th><th>Dates</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for l in leaves %}
+                <tr>
+                    <td>{{ l.leave_type }}</td>
+                    <td>{{ l.start_date.strftime('%d %b') }} - {{ l.end_date.strftime('%d %b') }}</td>
+                    <td><span class="badge {{ l.status | lower }}">{{ l.status }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align: center; color: #64748B;">No leave requests found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const startEl = document.getElementById('leaveStart'), endEl = document.getElementById('leaveEnd');
+    const todayStr = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Kolkata'}).format(new Date());
+    startEl.min = endEl.min = todayStr;
+    startEl.addEventListener('change', () => { endEl.min = startEl.value || todayStr; if (endEl.value < endEl.min) endEl.value = ''; });
+    document.getElementById('leaveForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const message = document.getElementById('leaveMessage');
+        const button = event.currentTarget.querySelector('button[type="submit"]');
+        button.disabled = true;
+        message.textContent = '';
+
+        try {
+            const response = await fetch('/api/add_leave', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    leave_type: document.getElementById('leaveType').value,
+                    start_date: document.getElementById('leaveStart').value,
+                    end_date: document.getElementById('leaveEnd').value,
+                    reason: document.getElementById('leaveReason').value
+                })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Could not submit leave request.');
+            }
+            window.location.reload();
+        } catch (error) {
+            message.textContent = error.message || 'Server error. Please try again.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

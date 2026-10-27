@@ -1,0 +1,67 @@
+:root {
+    --side: #141c2b; --bg: #f1f3f8; --card: #fff; --line: #e3e7ef;
+    --text: #25304a; --muted: #7a849c; --accent: #1d9bd1;
+    --green: #1f9d4c; --amber: #f0a90a; --red: #d1242f
+}
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body { font: 14px/1.45 "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh }
+.sidebar { width: 220px; background: var(--side); color: #c9d1e0; flex-shrink: 0; padding: 18px 0 }
+.brand { font-size: 1.2rem; font-weight: 700; color: #fff; padding: 0 20px 18px; border-bottom: 1px solid #26314A }
+.brand small { display: block; font-size: .75rem; font-weight: 400; color: #7f8aa3 }
+#nav button { display: block; width: 100%; text-align: left; padding: 12px 20px; background: none; border: 0; border-left: 3px solid transparent; color: inherit; font: inherit; cursor: pointer }
+#nav button:hover { background: #1b2538 }
+#nav button.active { background: #1b2538; color: #fff; border-left-color: var(--accent) }
+.main { flex: 1; min-width: 0 }
+.topbar { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 16px 26px; border-bottom: 1px solid var(--line) }
+.topbar h1 { font-size: 1.25rem }
+#todayLabel { color: var(--muted) }
+.page { display: none; padding: 22px 26px }
+.page.active { display: block }
+.card { background: var(--card); border-radius: 6px; padding: 18px; box-shadow: 0 1px 3px rgba(20, 28, 43, .08); margin-bottom: 18px }
+.card h2 { font-size: 1rem; margin-bottom: 10px }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 18px }
+.stat { background: #fff; border-radius: 6px; padding: 16px 18px; border-left: 4px solid var(--accent); box-shadow: 0 1px 3px rgba(20, 28, 43, .08) }
+.stat b { display: block; font-size: 1.8rem }
+.stat span { color: var(--muted) }
+.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px }
+.legend { color: var(--muted); font-size: .85rem }
+input, select { border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; font: inherit; color: inherit; background: #fff }
+.btn { background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 8px 14px; font: inherit; cursor: pointer }
+.btn.ghost { background: #fff; color: var(--text); border: 1px solid var(--line) }
+.btn.ok { background: var(--green) }
+.btn.no { background: var(--red) }
+.btn.sm { padding: 4px 10px; margin-left: 4px }
+table { width: 100%; border-collapse: collapse }
+th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--line) }
+th { background: #eaeef4; font-size: .8rem; color: var(--muted) }
+.badge { padding: 2px 9px; border-radius: 10px; font-size: .78rem; color: #fff }
+.badge.Pending { background: var(--amber) }
+.badge.Approved, .badge.Done { background: var(--green) }
+.badge.Rejected { background: var(--red) }
+.badge.Open { background: var(--accent) }
+.scroll { overflow-x: auto }
+.att th, .att td { text-align: center; padding: 7px 3px; min-width: 30px; font-size: .8rem }
+.att th:first-child, .att td:first-child { text-align: left; min-width: 150px; padding-left: 8px; position: sticky; left: 0; background: #fff }
+.att th:first-child { background: #eaeef4 }
+.att td.cell { cursor: pointer; font-size: .95rem }
+.att td.cell:hover { background: #f3f7fb }
+.P { color: var(--green) }
+.A { color: var(--muted) }
+.L { color: var(--amber); font-weight: 700 }
+.H { color: var(--red); font-weight: 700 }
+.star { color: var(--amber) }
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr) }
+.cal-head div { text-align: center; font-weight: 600; padding: 8px; background: #eaeef4 }
+.day { min-height: 92px; border: 1px solid var(--line); margin: -1px 0 0 -1px; padding: 6px; text-align: right; cursor: pointer }
+.day:hover { background: #f6f9fc }
+.day.other { color: #b4bccd }
+.day.today { background: #e8f5fb }
+.hol { display: block; margin-top: 4px; background: var(--amber); color: #2b2100; border-radius: 4px; padding: 2px 6px; font-size: .78rem; text-align: left }
+@media(max-width:760px) {
+    body { flex-direction: column }
+    .sidebar { width: 100%; padding: 8px 0 }
+    #nav { display: flex; overflow-x: auto }
+    #nav button { white-space: nowrap; border-left: 0 }
+    .page { padding: 14px }
+    .day { min-height: 60px }
+}

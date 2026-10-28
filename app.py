@@ -726,6 +726,23 @@ def admin_student_create():
         return jsonify(success=False, message="That username or email already exists."), 400
     return jsonify(success=True)
 
+@app.route("/student_profile")
+@student
+def student_profile():
+    # Fetch the student's details using your custom run() helper
+    student = run("""
+        SELECT s.student_id, s.firstname, s.lastname, s.email, s.mobile_no, 
+               s.gender, s.dob, s.city, u.username
+        FROM Student s 
+        INNER JOIN users u ON s.user_id = u.user_id 
+        WHERE s.student_id = ?
+    """, (session["student_id"],), "one")
+    
+    if not student:
+        return "Profile not found", 404
+        
+    return render_template("student_profile.html", student=student, username=session["name"])
+
 
 @app.route("/api/admin/student-list/<int:sid>", methods=["PUT"])
 @admin

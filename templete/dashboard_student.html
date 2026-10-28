@@ -4,20 +4,154 @@
 {% block breadcrumb %}Dashboard{% endblock %}
 
 {% block content %}
+<style>
+    /* Header Layout */
+    .header-row {
+        display: flex;
+        align-items: center; /* Vertically center everything */
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+
+    /* Center Time */
+    .header-live-time {
+        flex: 1; /* Takes up remaining space */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .header-live-time .live-time {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #1E293B;
+        letter-spacing: 1px;
+    }
+
+    /* Right-side controls column */
+    .header-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 12px;
+        min-width: 200px; /* Prevents button from shrinking too much */
+    }
+
+    /* Action Group (Button + Timer) */
+    .attendance-action-group {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .attendance-action-group .btn {
+        padding: 12px 24px;
+        font-weight: 600;
+        border-radius: 8px;
+        justify-content: center;
+    }
+
+    .attendance-action-group .btn-clock-out {
+        background: #dc2626;
+        color: #fff;
+        border: none;
+    }
+    .attendance-action-group .btn-clock-out:hover {
+        background: #b91c1c;
+    }
+    .attendance-action-group .btn:disabled {
+        opacity: .65;
+        cursor: not-allowed;
+    }
+
+    /* Timer below the button */
+    .attendance-timer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1E293B;
+    }
+    .attendance-timer i { color: #64748B; }
+    .timer-value { font-variant-numeric: tabular-nums; }
+    .timer-state { color: #64748B; font-size: 12px; font-weight: 500; }
+
+    @media (max-width: 900px) {
+        .header-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .header-live-time {
+            justify-content: flex-start;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .header-controls {
+            align-items: flex-start;
+            width: 100%;
+        }
+        .attendance-action-group {
+            width: 250px;
+        }
+    }
+</style>
+
 <div class="header-row">
+    <!-- Welcome Text (Left) -->
     <div class="welcome-text">
         <span class="eyebrow">STUDENT WORKSPACE</span>
         <h2>Good day, {{ username }}!</h2>
         <p>Here is your academic and attendance overview.</p>
     </div>
-    
-    <div class="clock-widget">
-        <span class="timezone">INDIAN STANDARD TIME (IST)</span>
+
+    <!-- Live Time (Center) -->
+    <div class="header-live-time">
         <div class="live-time" id="liveTime">--:--:--</div>
-        <div class="live-date" id="liveDate">--</div>
+    </div>
+
+    <!-- Controls (Right) -->
+    <div class="header-controls">
+        <div class="attendance-action-group">
+            <!-- Action Button -->
+            <div class="action-buttons">
+                {% if att_status == 'Completed' %}
+                <button class="btn btn-primary" id="btnAttendance" disabled>
+                    <i class="fa-solid fa-check"></i> Day completed
+                </button>
+                {% elif att_status == 'In Progress' %}
+                <button class="btn btn-clock-out" id="btnAttendance" onclick="handleAttendanceToggle()">
+                    <i class="fa-solid fa-stop"></i> Clock Out
+                </button>
+                {% else %}
+                <button class="btn btn-primary" id="btnAttendance" onclick="handleAttendanceToggle()">
+                    <i class="fa-solid fa-play"></i> Clock In
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Elapsed Timer -->
+            <div class="attendance-timer" aria-live="off">
+                <i class="fa-regular fa-clock"></i>
+                <span class="timer-value" id="headerAttendanceTimer">00:00:00</span>
+                <span class="timer-state" id="headerTimerState">
+                    {% if att_status == 'In Progress' %}Running{% elif att_status == 'Completed' %}Completed{% else %}Not started{% endif %}
+                </span>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- STATS GRID -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="icon-box bg-light-blue"><i class="fa-solid fa-list-ul"></i></div>
@@ -41,7 +175,9 @@
         <div class="icon-box bg-light-orange"><i class="fa-solid fa-user-clock"></i></div>
         <div class="stat-info">
             <span class="stat-label">Today's attendance</span>
-            <div class="stat-value {% if att_status == 'Completed' %}text-green{% elif att_status == 'In Progress' %}text-blue{% endif %}" id="attendanceStatus">{{ att_status }}</div>
+            <div class="stat-value {% if att_status == 'Completed' %}text-green{% elif att_status == 'In Progress' %}text-blue{% endif %}" id="attendanceStatus">
+                {{ att_status }}
+            </div>
             <span class="stat-sub" id="attendanceSub">{{ att_sub }}</span>
         </div>
     </div>
@@ -58,20 +194,15 @@
             <div class="live-badge">Live · IST</div>
         </div>
 
-        <div class="action-buttons">
-            <button class="btn btn-primary" id="btnClockIn" onclick="handleClockIn()"><i class="fa-solid fa-play"></i> Clock In</button>
-            <button class="btn btn-secondary" id="btnClockOut" onclick="handleClockOut()"><i class="fa-solid fa-stop"></i> Clock Out</button>
-        </div>
-
         <div class="time-stats">
             <div class="time-block"><span>Clock in</span><strong id="uiClockIn">{{ clock_in }}</strong></div>
             <div class="time-block"><span>Clock out</span><strong id="uiClockOut">{{ clock_out }}</strong></div>
             <div class="time-block"><span>Duration today</span><strong id="uiDuration">{{ duration }}</strong></div>
         </div>
         <div class="tracking-message" id="trackingMessage">
-            {% if att_status == 'Completed' %} Clock-out recorded successfully.
-            {% elif att_status == 'In Progress' %} You are currently clocked in.
-            {% else %} Click "Clock In" to start your day. {% endif %}
+            {% if att_status == 'Completed' %}Clock-out recorded successfully.
+            {% elif att_status == 'In Progress' %}You are currently clocked in.
+            {% else %}Click "Clock In" to start your day.{% endif %}
         </div>
     </div>
 
@@ -89,7 +220,9 @@
                 <div class="task-info"><strong>{{ holiday[0] }}</strong><span>{{ holiday[1] }}</span></div>
             </div>
             {% else %}
-            <div class="empty-state"><p>No upcoming holidays have been added.</p></div>
+            <div class="empty-state">
+                <p>No upcoming holidays have been added.</p>
+            </div>
             {% endfor %}
         </div>
     </div>
@@ -103,20 +236,22 @@
         </div>
         <a href="/tasks" class="link">Open tasks <i class="fa-solid fa-arrow-right"></i></a>
     </div>
-    
+
     <div class="task-list">
         {% if recent_tasks %}
-            {% for task in recent_tasks %}
-            <div class="task-item">
-                <div class="task-info">
-                    <strong>{{ task.title }}</strong>
-                    <span>Due: {{ task.due_date }}</span>
-                </div>
-                <span class="badge {{ task.status }}">{{ task.status | replace('_', ' ') | title }}</span>
+        {% for task in recent_tasks %}
+        <div class="task-item">
+            <div class="task-info">
+                <strong>{{ task.title }}</strong>
+                <span>Due: {{ task.due_date }}</span>
             </div>
-            {% endfor %}
+            <span class="badge {{ task.status }}">{{ task.status | replace('_', ' ') | title }}</span>
+        </div>
+        {% endfor %}
         {% else %}
-            <div class="empty-state" style="padding: 20px 0;"><p>No tasks added yet.</p></div>
+        <div class="empty-state" style="padding: 20px 0;">
+            <p>No tasks added yet.</p>
+        </div>
         {% endif %}
     </div>
 </div>
@@ -124,4 +259,80 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/dashboard_student.js') }}"></script>
+<script>
+(function () {
+    // 1. Live Clock (IST) - Only Time
+    function updateLiveClock() {
+        const now = new Date();
+        const time = new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: true
+        }).format(now);
+
+        const timeEl = document.getElementById('liveTime');
+        if (timeEl) timeEl.textContent = time;
+    }
+
+    // 2. Elapsed Timer Logic
+    const status = {{ att_status | tojson }};
+    const clockInText = {{ clock_in | tojson }};
+    const timerEl = document.getElementById('headerAttendanceTimer');
+    const timerStateEl = document.getElementById('headerTimerState');
+    let startTimestamp = null;
+    let stoppedSeconds = 0;
+
+    function parseClockTime(value) {
+        if (!value || value === '--:--:--') return null;
+        const match = value.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})\s*(am|pm)$/i);
+        if (!match) return null;
+
+        let hours = Number(match[1]) % 12;
+        if (match[4].toLowerCase() === 'pm') hours += 12;
+        const now = new Date();
+        const dateParts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(now).reduce((obj, p) => (obj[p.type] = p.value, obj), {});
+        const iso = `${dateParts.year}-${dateParts.month}-${dateParts.day}T${String(hours).padStart(2, '0')}:${match[2]}:${match[3]}+05:30`;
+        const parsed = new Date(iso);
+        return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+    }
+
+    function parseDuration(value) {
+        const match = (value || '').match(/^(\d+):(\d{2}):(\d{2})$/);
+        return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : 0;
+    }
+
+    if (status === 'In Progress') {
+        startTimestamp = parseClockTime(clockInText);
+    } else if (status === 'Completed') {
+        stoppedSeconds = parseDuration({{ duration | tojson }});
+    }
+
+    function updateTimer() {
+        if (!timerEl) return;
+        let seconds = stoppedSeconds;
+        if (status === 'In Progress' && startTimestamp !== null) {
+            seconds = Math.max(0, Math.floor((Date.now() - startTimestamp) / 1000));
+        }
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        timerEl.textContent = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+
+        if (timerStateEl && status === 'Completed') timerStateEl.textContent = 'Completed';
+        if (timerStateEl && status === 'Not Started') timerStateEl.textContent = 'Not started';
+        if (timerStateEl && status === 'In Progress') timerStateEl.textContent = 'Running';
+    }
+
+    // Initialize
+    updateLiveClock();
+    updateTimer();
+    
+    // Tick every second
+    setInterval(updateLiveClock, 1000);
+    setInterval(updateTimer, 1000);
+})();
+</script>
 {% endblock %}

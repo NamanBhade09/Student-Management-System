@@ -4,81 +4,60 @@
 {% block breadcrumb %}Calendar{% endblock %}
 
 {% block content %}
-<div class="calendar-layout">
-    <div class="content-card calendar-card">
-        <div class="calendar-header">
-            <button class="btn-icon" onclick="prevMonth()"><i class="fa-solid fa-chevron-left"></i></button>
-            <h3 id="monthYear"></h3>
-            <button class="btn-icon" onclick="nextMonth()"><i class="fa-solid fa-chevron-right"></i></button>
-        </div>
-        <div class="calendar-grid-header">
-            <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
+<!-- Calendar Card (Now Full Width) -->
+<div class="calendar-card">
+    <div class="calendar-header">
+        <button class="nav-btn" onclick="prevMonth()">❮</button>
+        <div class="month-title" id="monthTitle">Loading...</div>
+        <button class="nav-btn" onclick="nextMonth()">❯</button>
     </div>
-
-    <div class="content-card">
-        <span class="eyebrow">SELECTED DATE</span>
-        <h3 id="selectedDateDisplay">Select a date</h3>
-        <p class="card-desc" id="holidayNameDisplay" style="margin-top: 10px;">No office holiday recorded for this date.</p>
+    
+    <div class="weekdays">
+        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
     </div>
+    
+    <!-- The Grid -->
+    <div class="calendar-grid" id="calendarGrid"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     const holidays = {{ holidays | tojson }};
-    let currentDate = new Date();
-    currentDate.setDate(1);
+    let currentDate = new Date(); 
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
     function renderCalendar() {
         const grid = document.getElementById('calendarGrid');
-        const header = document.getElementById('monthYear');
+        const title = document.getElementById('monthTitle');
         grid.innerHTML = '';
         
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
         
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        header.textContent = `${monthNames[month]} ${year}`;
+        title.textContent = `${monthNames[month]} ${year}`;
 
         const firstDay = new Date(year, month, 1).getDay() || 7; 
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+        // Empty slots for previous month
         for (let i = 1; i < firstDay; i++) {
-            grid.innerHTML += `<div class="cal-day empty"></div>`;
+            grid.innerHTML += `<div class="day empty"></div>`;
         }
 
+        // Days of the month
         for (let i = 1; i <= daysInMonth; i++) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-            const isHoliday = holidays[dateStr];
-            const today = new Intl.DateTimeFormat('en-CA', {
-                timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
-            }).format(new Date());
-            const isToday = today === dateStr;
+            const holidayName = holidays[dateStr];
+            
+            const today = new Date();
+            const isToday = (today.getDate() === i && today.getMonth() === month && today.getFullYear() === year);
             
             grid.innerHTML += `
-                <div class="cal-day ${isHoliday ? 'holiday' : ''} ${isToday ? 'today' : ''}" 
-                     onclick="selectDate('${dateStr}', '${isHoliday || ''}', this)">
-                    ${i}
+                <div class="day ${holidayName ? 'holiday' : ''} ${isToday ? 'today' : ''}">
+                    <div class="day-number">${i}</div>
+                    ${holidayName ? `<div class="holiday-name">${holidayName}</div>` : ''}
                 </div>`;
-        }
-    }
-
-    function selectDate(dateStr, holiday, element) {
-        document.querySelectorAll('.cal-day').forEach(el => el.classList.remove('selected'));
-        element.classList.add('selected');
-        
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('selectedDateDisplay').textContent = new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-GB', options);
-        
-        const holDisplay = document.getElementById('holidayNameDisplay');
-        if (holiday) {
-            holDisplay.textContent = `🎉 ${holiday}`;
-            holDisplay.style.color = '#EF4444';
-        } else {
-            holDisplay.textContent = "No office holiday recorded for this date.";
-            holDisplay.style.color = '#64748B';
         }
     }
 

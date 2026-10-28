@@ -1,0 +1,92 @@
+{% extends 'base_student.html' %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}Student Profile{% endblock %}
+{% block breadcrumb %}Student Profile{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student_profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    
+    <!-- Left Side: Basic Profile Card -->
+    <div class="profile-card">
+        <!-- Using a placeholder image for now -->
+        <img src="https://ui-avatars.com/api/?name={{ student.firstname }}+{{ student.lastname }}&background=2563EB&color=fff&size=140" alt="Student">
+        <h2>{{ student.firstname }} {{ student.lastname }}</h2>
+        <p>@{{ student.username }}</p>
+        <div class="status">
+            <span>Active Student</span>
+        </div>
+    </div>
+
+    <!-- Right Side: Detailed Information -->
+    <div class="details-card">
+        <h3>Personal Information</h3>
+        <div class="info-grid">
+            
+            <div class="info-box">
+                <label>Student ID</label>
+                <span>STU-{{ student.student_id }}</span>
+            </div>
+            <div class="info-box">
+                <label>Roll Number</label>
+                <span>101</span> <!-- Placeholder -->
+            </div>
+            <div class="info-box">
+                <label>Email</label>
+                <span>{{ student.email }}</span>
+            </div>
+            <div class="info-box">
+                <label>Mobile</label>
+                <span>{{ student.mobile_no }}</span>
+            </div>
+            <div class="info-box">
+                <label>Date of Birth</label>
+                <span>{{ student.dob.strftime('%d %b %Y') if student.dob else 'Not Set' }}</span>
+            </div>
+            <div class="info-box">
+                <label>Gender</label>
+                <span>{{ student.gender }}</span>
+            </div>
+            <div class="info-box">
+                <label>Department</label>
+                <span>Computer Science</span> <!-- Placeholder -->
+            </div>
+            <div class="info-box">
+                <label>Semester</label>
+                <span>6th Semester</span> <!-- Placeholder -->
+            </div>
+            <div class="info-box">
+                <label>City</label>
+                <span>{{ student.city }}</span>
+            </div>
+            <div class="info-box">
+                <label>Admission Year</label>
+                <span>2023</span> <!-- Placeholder -->
+            </div>
+            
+        </div>
+
+        <h3>Academic Overview</h3>
+        <div class="stats">
+            <div class="stat-card">
+                <i class="fa-solid fa-book"></i>
+                <h2>8.7</h2> <!-- Placeholder -->
+                <p>CGPA</p>
+            </div>
+            <div class="stat-card">
+                <i class="fa-solid fa-calendar-check"></i>
+                <h2>92%</h2> <!-- Placeholder -->
+                <p>Attendance</p>
+            </div>
+            <div class="stat-card">
+                <i class="fa-solid fa-trophy"></i>
+                <h2>12</h2> <!-- Placeholder -->
+                <p>Achievements</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

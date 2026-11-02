@@ -1,10 +1,10 @@
 /* --- STUDENT PROFILE STYLES --- */
 
 .profile-container {
-    margin-top: 10px;
     display: grid;
     grid-template-columns: 320px 1fr;
     gap: 25px;
+    align-items: start;
 }
 
 .profile-card {
@@ -22,11 +22,12 @@
     height: 140px;
     border-radius: 50%;
     object-fit: cover;
-    border: 4px solid #2563EB;
+    border: 4px solid #EFF6FF;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
 .profile-card h2 {
-    margin-top: 15px;
+    margin-top: 20px;
     color: #10294E;
     font-size: 1.4rem;
 }
@@ -44,10 +45,11 @@
 .status span {
     background: #d1fae5;
     color: #059669;
-    padding: 8px 15px;
+    padding: 6px 16px;
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 600;
+    display: inline-block;
 }
 
 .details-card {
@@ -58,16 +60,23 @@
     border: 1px solid #E2E8F0;
 }
 
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
 .details-card h3 {
     color: #10294E;
-    margin-bottom: 18px;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
+    margin: 0;
 }
 
 .info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
+    gap: 16px;
     margin-bottom: 35px;
 }
 
@@ -75,7 +84,7 @@
     background: #f8fafc;
     border: 1px solid #E5E7EB;
     border-radius: 12px;
-    padding: 15px;
+    padding: 16px;
 }
 
 .info-box label {
@@ -104,33 +113,101 @@
     background: #f8fafc;
     border: 1px solid #E5E7EB;
     border-radius: 15px;
-    text-align: center;
-    padding: 25px;
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
 }
 
 .stat-card i {
-    font-size: 30px;
+    font-size: 28px;
     color: #2563eb;
-    margin-bottom: 10px;
+    background: #EFF6FF;
+    padding: 12px;
+    border-radius: 10px;
+}
+
+.stat-card div {
+    display: flex;
+    flex-direction: column;
 }
 
 .stat-card h2 {
     color: #10294E;
-    margin-bottom: 5px;
-    font-size: 1.8rem;
+    font-size: 1.4rem;
+    margin: 0;
+    line-height: 1.1;
 }
 
 .stat-card p {
     color: #6b7280;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
+    margin: 4px 0 0 0;
 }
 
-@media(max-width:900px){
-    .profile-container {
-        grid-template-columns: 1fr;
-    }
-    .stats {
-        grid-template-columns: 1fr;
-    }
+/* --- MODAL STYLES --- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+.modal-box {
+    background: #FFF;
+    width: 100%;
+    max-width: 600px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.2s;
+    overflow: hidden;
+}
+.modal-overlay.active .modal-box {
+    transform: translateY(0) scale(1);
+}
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #F8FAFC;
+}
+.modal-header h2 { margin: 0; font-size: 1.25rem; color: #1E293B; }
+.modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748B; }
+.modal-close:hover { color: #EF4444; }
+.modal-body { padding: 24px; }
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: #F8FAFC;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: #1E293B; }
+.form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #E2E8F0; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px #EFF6FF; }
+
+@media(max-width: 900px) {
+    .profile-container { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr; }
+    .form-grid { grid-template-columns: 1fr; }
 }

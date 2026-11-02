@@ -19,7 +19,6 @@ app.secret_key = os.environ.get("SMS_SECRET_KEY", "change-this-secret-key")
 
 IST = timezone(timedelta(hours=5, minutes=30))
 LEAVE_TYPES = {"Sick Leave", "Casual Leave"}
-ATT_STATUSES = {"Present", "Absent", "Late", "Half-day"}
 
 
 # ---------------------------------------------------------------- helpers
@@ -28,7 +27,6 @@ def now_ist():
 
 
 def run(sql, params=(), fetch=None):
-    """Run one statement. fetch: 'one' | 'all' | None. Returns rows or rowcount."""
     conn = get_db_connection()
     if conn is None:
         raise RuntimeError("Database is unavailable. Please try again later.")
@@ -46,7 +44,6 @@ def run(sql, params=(), fetch=None):
 
 
 def run_insert(sql, params=()):
-    """INSERT ... OUTPUT INSERTED.id and return the new id."""
     conn = get_db_connection()
     if conn is None:
         raise RuntimeError("Database is unavailable. Please try again later.")
@@ -104,10 +101,41 @@ def db_error(e):
 
 def today_attendance(student_id):
     return run(
-        "SELECT TOP 1 clock_in_time, clock_out_time FROM Attendance "
+        "SELECT TOP 1 attendance_id, clock_in_time, clock_out_time FROM Attendance "
         "WHERE student_id=? AND CAST(clock_in_time AS DATE)=? "
         "ORDER BY clock_in_time DESC",
         (student_id, now_ist().date()), "one")
+
+
+def ensure_attendance_schedule_table():
+    run("""
+        IF OBJECT_ID(N'dbo.StudentAttendanceSchedule', N'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.StudentAttendanceSchedule (
+                student_id INT NOT NULL PRIMARY KEY,
+                start_time TIME(0) NOT NULL,
+                end_time TIME(0) NOT NULL,
+                CONSTRAINT FK_StudentAttendanceSchedule_Student
+                    FOREIGN KEY (student_id) REFERENCES dbo.Student(student_id)
+                    ON DELETE CASCADE
+            )
+        END
+    """)
+
+
+def active_attendance_for_day(day):
+    rows = run("""
+        SELECT s.student_id, s.firstname + ' ' + s.lastname AS name, a.clock_in_time
+        FROM Attendance a
+        JOIN Student s ON s.student_id=a.student_id
+        WHERE CAST(a.clock_in_time AS DATE)=? AND a.clock_out_time IS NULL
+        ORDER BY a.clock_in_time
+    """, (day,), "all")
+    return [{
+        "id": row.student_id,
+        "name": row.name,
+        "clockIn": fmt_time(row.clock_in_time),
+    } for row in rows]
 
 
 # ---------------------------------------------------------------- auth
@@ -135,7 +163,7 @@ def api_login():
     ok, upgrade = verify_pw(row.password_hash, password) if row else (False, False)
     if not ok:
         return jsonify(success=False, message="Invalid username or password.")
-    if upgrade:  # legacy plain-text password: re-store it hashed
+    if upgrade:
         run("UPDATE users SET password_hash=? WHERE user_id=?", (hash_pw(password), row.user_id))
     session.clear()
     session.update(user_id=row.user_id, role=row.role, username=row.username,
@@ -154,11 +182,17 @@ def logout():
 @student
 def dashboard_student():
     sid = session["student_id"]
+    today_date = now_ist().date()
+    
     counts = {r.status: r.n for r in run(
         "SELECT status, COUNT(*) AS n FROM Task WHERE student_id=? GROUP BY status",
         (sid,), "all")}
     completed = counts.get("completed", 0)
-    remaining = counts.get("pending", 0) + counts.get("in_progress", 0)
+    remaining = counts.get("pending", 0) + counts.get("in_progress", 0) + counts.get("pending_approval", 0)
+    
+    overdue_row = run("SELECT COUNT(*) AS n FROM Task WHERE student_id=? AND status NOT IN ('completed', 'pending_approval') AND due_date < ?", 
+                      (sid, today_date), "one")
+    overdue = overdue_row.n if overdue_row else 0
 
     lv = run("SELECT COUNT(*) AS total, "
              "SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) AS pending "
@@ -177,18 +211,44 @@ def dashboard_student():
         cin, cout = fmt_time(att.clock_in_time), fmt_time(att.clock_out_time)
         dur = fmt_duration(att.clock_in_time, att.clock_out_time)
 
-    holidays = [(h.name, h.holiday_date.strftime("%d %b %Y")) for h in run(
-        "SELECT TOP 5 name, holiday_date FROM Holiday WHERE holiday_date>=? "
-        "ORDER BY holiday_date", (now_ist().date(),), "all")]
-    recent = run("SELECT TOP 5 title, due_date, status FROM Task WHERE student_id=? "
-                 "ORDER BY created_at DESC", (sid,), "all")
+    start_of_week = today_date - timedelta(days=today_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    
+    week_att = run(
+        "SELECT clock_in_time, clock_out_time FROM Attendance WHERE student_id=? AND CAST(clock_in_time AS DATE) BETWEEN ? AND ?",
+        (sid, start_of_week, end_of_week), "all"
+    )
+    
+    weekly_totals = [0] * 7
+    total_week_secs = 0
+    for r in week_att:
+        if r.clock_in_time and r.clock_out_time:
+            day_idx = r.clock_in_time.weekday()
+            secs = (r.clock_out_time - r.clock_in_time).total_seconds()
+            weekly_totals[day_idx] += secs
+            total_week_secs += secs
+            
+    week_h = int(total_week_secs // 3600)
+    week_m = int((total_week_secs % 3600) // 60)
+    week_duration_str = f"{week_h}h {week_m:02d}m"
+    week_progress_pct = min(100, int((total_week_secs / 144000) * 100))
+
+    month_start = today_date.replace(day=1)
+    present_days = run("SELECT COUNT(DISTINCT CAST(clock_in_time AS DATE)) AS n FROM Attendance WHERE student_id=? AND CAST(clock_in_time AS DATE) >= ?", (sid, month_start), "one").n
+    holidays = run("SELECT TOP 3 name, holiday_date FROM Holiday WHERE holiday_date>=? ORDER BY holiday_date", (today_date,), "all")
+    recent = run("SELECT TOP 5 title, due_date, status FROM Task WHERE student_id=? ORDER BY created_at DESC", (sid,), "all")
 
     return render_template(
-        "dashboard_student.html", username=session["name"],
-        remaining_tasks=remaining, completed_tasks=completed,
+        "dashboard_student.html", username=session["name"], student_id=sid,
+        remaining_tasks=remaining, completed_tasks=completed, overdue_tasks=overdue,
         total_leaves=lv.total or 0, pending_leaves=lv.pending or 0,
         att_status=att_status, att_sub=att_sub, clock_in=cin, clock_out=cout,
-        duration=dur, upcoming_holidays=holidays, recent_tasks=recent)
+        duration=dur, upcoming_holidays=holidays, recent_tasks=recent,
+        present_days=present_days,
+        weekly_totals=weekly_totals, week_duration_str=week_duration_str, 
+        week_progress_pct=week_progress_pct, today_weekday=today_date.weekday(),
+        today_date=today_date
+    )
 
 
 @app.route("/calendar")
@@ -213,9 +273,7 @@ def leave_page():
 @app.route("/tasks")
 @student
 def tasks_page():
-    tasks = run("SELECT task_id, title, due_date, status FROM Task WHERE student_id=? "
-                "ORDER BY created_at DESC", (session["student_id"],), "all")
-    return render_template("tasks.html", tasks=tasks)
+    return render_template("tasks.html")
 
 
 def attendance_records(sid):
@@ -254,6 +312,26 @@ def attendance_export():
                     headers={"Content-Disposition": "attachment; filename=attendance.csv"})
 
 
+@app.route("/student_profile")
+@student
+def student_profile():
+    student = run("""
+        SELECT s.student_id, s.firstname, s.lastname, s.email, s.mobile_no,
+               s.gender, s.dob, s.city, u.username
+        FROM Student s
+        INNER JOIN users u ON s.user_id = u.user_id
+        WHERE s.student_id = ?
+    """, (session["student_id"],), "one")
+
+    if not student:
+        return "Profile not found", 404
+
+    p = compute_performance(session["student_id"])
+
+    return render_template("student_profile.html",
+                           student=student, p=p, username=session["name"])
+
+
 # ---------------------------------------------------------------- student APIs
 @app.route("/api/clock_in", methods=["POST"])
 @student
@@ -262,6 +340,14 @@ def api_clock_in():
     if today_attendance(sid):
         return jsonify(success=False, message="You have already clocked in today.")
     now = now_ist()
+    ensure_attendance_schedule_table()
+    schedule = run(
+        "SELECT start_time FROM StudentAttendanceSchedule WHERE student_id=?",
+        (sid,), "one")
+    if schedule and now.time() < schedule.start_time:
+        return jsonify(
+            success=False,
+            message=f"Clock-in opens at {schedule.start_time.strftime('%I:%M %p').lower()}.")
     run("INSERT INTO Attendance (student_id, clock_in_time) VALUES (?, ?)", (sid, now))
     return jsonify(success=True, time=fmt_time(now))
 
@@ -276,39 +362,68 @@ def api_clock_out():
     if att.clock_out_time:
         return jsonify(success=False, message="You have already clocked out today.")
     now = now_ist()
-    run("UPDATE Attendance SET clock_out_time=? WHERE student_id=? AND clock_in_time=?",
-        (now, sid, att.clock_in_time))
+    run("UPDATE Attendance SET clock_out_time=? WHERE attendance_id=?", (now, att.attendance_id))
     return jsonify(success=True, time=fmt_time(now),
                    duration=fmt_duration(att.clock_in_time, now))
 
 
-@app.route("/api/add_task", methods=["POST"])
+@app.route("/api/attendance_status", methods=["GET"])
 @student
-def api_add_task():
-    title = ((request.get_json(silent=True) or {}).get("title") or "").strip()
-    if not title:
-        return jsonify(success=False, message="Task title is required.")
-    if len(title) > 255:
-        return jsonify(success=False, message="Title is too long (max 255).")
-    due = now_ist().date()
-    tid = run_insert("INSERT INTO Task (student_id, title, due_date) "
-                     "OUTPUT INSERTED.task_id VALUES (?, ?, ?)",
-                     (session["student_id"], title, due))
-    return jsonify(success=True, task_id=tid, due_date=due.isoformat())
+def api_attendance_status():
+    att = today_attendance(session["student_id"])
+    if not att:
+        return jsonify(status="Not Started", clock_in="--:--:--", duration="00:00:00")
+    if not att.clock_out_time:
+        return jsonify(status="In Progress", clock_in=fmt_time(att.clock_in_time), duration="00:00:00")
+    return jsonify(
+        status="Completed", 
+        clock_in=fmt_time(att.clock_in_time), 
+        duration=fmt_duration(att.clock_in_time, att.clock_out_time)
+    )
 
 
-@app.route("/api/update_task", methods=["POST"])
+@app.route("/api/update_profile", methods=["POST"])
 @student
-def api_update_task():
+def api_update_profile():
     d = request.get_json(silent=True) or {}
-    if d.get("status") not in ("pending", "in_progress", "completed"):
-        return jsonify(success=False, message="Invalid status.")
-    n = run("UPDATE Task SET status=?, updated_at=SYSDATETIME() "
-            "WHERE task_id=? AND student_id=?",
-            (d["status"], d.get("task_id"), session["student_id"]))
-    if not n:
-        return jsonify(success=False, message="Task not found.")
-    return jsonify(success=True)
+    sid = session["student_id"]
+
+    firstname = (d.get("firstname") or "").strip()
+    lastname = (d.get("lastname") or "").strip()
+    email = (d.get("email") or "").strip()
+    mobile_no = (d.get("mobile_no") or "").strip()
+    gender = (d.get("gender") or "").strip()
+    dob_str = (d.get("dob") or "").strip()
+    city = (d.get("city") or "").strip()
+
+    if not firstname or not lastname or not email or not city:
+        return jsonify(success=False, message="Name, email, and city are required."), 400
+
+    if "@" not in email:
+        return jsonify(success=False, message="Invalid email address."), 400
+
+    try:
+        dob = date.fromisoformat(dob_str) if dob_str else None
+    except ValueError:
+        return jsonify(success=False, message="Invalid date of birth."), 400
+
+    try:
+        existing = run("SELECT student_id FROM Student WHERE email=? AND student_id<>?", (email, sid), "one")
+        if existing:
+            return jsonify(success=False, message="That email address is already in use by another account."), 400
+            
+        run("""
+            UPDATE Student 
+            SET firstname=?, lastname=?, email=?, mobile_no=?, gender=?, dob=?, city=?
+            WHERE student_id=?
+        """, (firstname, lastname, email, mobile_no or None, gender or None, dob, city, sid))
+        
+        run("UPDATE users SET username=? WHERE user_id=(SELECT user_id FROM Student WHERE student_id=?)", (email, sid))
+        
+        session["name"] = firstname
+        return jsonify(success=True)
+    except pyodbc.IntegrityError:
+        return jsonify(success=False, message="Database error updating profile."), 400
 
 
 @app.route("/api/add_leave", methods=["POST"])
@@ -332,6 +447,105 @@ def api_add_leave():
     return jsonify(success=True)
 
 
+# ================================================================ TASKS API
+@app.route("/api/students", methods=["GET"])
+@student
+def api_students_list():
+    rows = run(
+        "SELECT firstname + ' ' + lastname AS name FROM Student ORDER BY firstname, lastname",
+        fetch="all")
+    return jsonify([{"name": r.name} for r in rows])
+
+
+@app.route("/api/tasks", methods=["GET"])
+@student
+def api_tasks_list():
+    sid = session["student_id"]
+    rows = run("""
+        SELECT task_id, title, status, due_date, created_at, updated_at, 
+               assigned_to, estimated_hours, hours_logged 
+        FROM Task WHERE student_id=? ORDER BY created_at DESC
+    """, (sid,), "all")
+    
+    result = []
+    for r in rows:
+        result.append({
+            "id": r.task_id,
+            "code": f"TASK-{r.task_id:03d}",
+            "title": r.title,
+            "status": r.status,
+            "due": r.due_date.isoformat() if r.due_date else "",
+            "start": r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
+            "completedOn": r.updated_at.strftime("%Y-%m-%d") if r.status == 'completed' and r.updated_at else "",
+            "assignee": r.assigned_to or "",
+            "estimate": float(r.estimated_hours) if r.estimated_hours else 0,
+            "hoursLogged": float(r.hours_logged) if r.hours_logged else 0
+        })
+    return jsonify(result)
+
+
+@app.route("/api/tasks", methods=["POST"])
+@student
+def api_tasks_create():
+    d = request.get_json(silent=True) or {}
+    title = (d.get("title") or "").strip()
+    if not title:
+        return jsonify(success=False, message="Task title is required."), 400
+
+    sid = session["student_id"]
+    run("""
+        INSERT INTO Task (student_id, title, due_date, status, assigned_to) 
+        VALUES (?, ?, ?, 'pending', ?)
+    """, (
+        sid, 
+        title, 
+        d.get("due") or now_ist().date(), 
+        d.get("assignee")
+    ))
+    return jsonify(success=True)
+
+
+@app.route("/api/tasks/<int:tid>", methods=["PUT"])
+@student
+def api_tasks_update(tid):
+    d = request.get_json(silent=True) or {}
+    sid = session["student_id"]
+
+    n = run("""
+        UPDATE Task 
+        SET title=?, due_date=?, assigned_to=?
+        WHERE task_id=? AND student_id=?
+    """, (
+        d.get("title"), d.get("due"), d.get("assignee"), tid, sid
+    ))
+    
+    if not n:
+        return jsonify(success=False, message="Task not found."), 404
+    return jsonify(success=True)
+
+
+@app.route("/api/tasks/<int:tid>/log_time", methods=["POST"])
+@student
+def api_tasks_log_time(tid):
+    d = request.get_json(silent=True) or {}
+    hours = float(d.get("hours", 0))
+    if hours <= 0:
+        return jsonify(success=False, message="Invalid hours."), 400
+
+    # Log time AND change status to pending_approval
+    n = run("""
+        UPDATE Task 
+        SET hours_logged = ISNULL(hours_logged, 0) + ?, 
+            status = 'pending_approval',
+            updated_at = GETDATE()
+        WHERE task_id=? AND student_id=?
+    """, (hours, tid, session["student_id"]))
+    
+    if not n:
+        return jsonify(success=False, message="Task not found."), 404
+    return jsonify(success=True)
+
+
 # ---------------------------------------------------------------- admin
 @app.route("/dashboard_admin")
 @admin
@@ -342,14 +556,22 @@ def dashboard_admin():
 @app.route("/api/admin/summary")
 @admin
 def admin_summary():
+    today = now_ist().date()
     r = run("SELECT "
             "(SELECT COUNT(*) FROM Student) AS students, "
             "(SELECT COUNT(DISTINCT student_id) FROM Attendance "
             " WHERE CAST(clock_in_time AS DATE)=?) AS present, "
             "(SELECT COUNT(*) FROM LeaveRequest WHERE status='Pending') AS leaves, "
-            "(SELECT COUNT(*) FROM Task WHERE status<>'completed') AS tasks",
-            (now_ist().date(),), "one")
-    return jsonify(students=r.students, present=r.present, leaves=r.leaves, tasks=r.tasks)
+            "(SELECT COUNT(*) FROM Task WHERE status NOT IN ('completed', 'pending_approval')) AS tasks",
+            (today,), "one")
+    return jsonify(students=r.students, present=r.present, leaves=r.leaves,
+                   tasks=r.tasks, activeStudents=active_attendance_for_day(today))
+
+
+@app.route("/api/admin/active-attendance")
+@admin
+def admin_active_attendance():
+    return jsonify(activeStudents=active_attendance_for_day(now_ist().date()))
 
 
 @app.route("/api/admin/students")
@@ -382,42 +604,92 @@ def admin_decide_leave(leave_id):
     return jsonify(success=True)
 
 
-@app.route("/api/admin/attendance", methods=["GET", "POST"])
+@app.route("/api/admin/attendance", methods=["GET"])
 @admin
 def admin_attendance():
-    if request.method == "POST":
-        d = request.get_json(silent=True) or {}
-        try:
-            day = date.fromisoformat(d.get("date", ""))
-            sid = int(d.get("student_id"))
-        except (ValueError, TypeError):
-            return jsonify(success=False, message="Invalid data."), 400
-        status = d.get("status")
-        if not status:
-            run("DELETE FROM AttendanceStatus WHERE student_id=? AND attendance_date=?", (sid, day))
-        elif status in ATT_STATUSES:
-            n = run("UPDATE AttendanceStatus SET status=? WHERE student_id=? AND attendance_date=?",
-                    (status, sid, day))
-            if not n:
-                run("INSERT INTO AttendanceStatus (student_id, attendance_date, status) "
-                    "VALUES (?, ?, ?)", (sid, day, status))
-        else:
-            return jsonify(success=False, message="Invalid status."), 400
-        return jsonify(success=True)
-
     month = request.args.get("month") or now_ist().strftime("%Y-%m")
     try:
         y, m = map(int, month.split("-"))
         days = cal.monthrange(y, m)[1]
     except ValueError:
         return jsonify(success=False, message="Invalid month."), 400
-    rows = run("SELECT student_id, attendance_date, status FROM AttendanceStatus "
-               "WHERE attendance_date BETWEEN ? AND ?",
-               (date(y, m, 1), date(y, m, days)), "all")
+
+    ensure_attendance_schedule_table()
+    start_date, end_date = date(y, m, 1), date(y, m, days)
+    status_rows = run(
+        "SELECT student_id, attendance_date, status FROM AttendanceStatus "
+        "WHERE attendance_date BETWEEN ? AND ?", (start_date, end_date), "all")
     records = {}
-    for r in rows:
+    for r in status_rows:
         records.setdefault(str(r.student_id), {})[str(r.attendance_date.day)] = r.status
-    return jsonify(days=days, year=y, month=m, records=records)
+    attendance_rows = run("""
+        SELECT a.student_id, a.clock_in_time, a.clock_out_time,
+               s.start_time, s.end_time
+        FROM Attendance a
+        LEFT JOIN StudentAttendanceSchedule s ON s.student_id=a.student_id
+        WHERE CAST(a.clock_in_time AS DATE) BETWEEN ? AND ?
+        ORDER BY a.clock_in_time DESC
+    """, (start_date, end_date), "all")
+    clock_times = {}
+    for r in attendance_rows:
+        attendance_day = r.clock_in_time.date()
+        student_key = str(r.student_id)
+        day_key = str(attendance_day.day)
+        student_times = clock_times.setdefault(student_key, {})
+        if day_key in student_times:
+            continue
+
+        clock_in = r.clock_in_time.time()
+        if r.end_time and r.clock_out_time and r.clock_out_time.time() < r.end_time:
+            automatic_status = "Half-day"
+        elif r.start_time and clock_in > r.start_time:
+            automatic_status = "Late"
+        else:
+            automatic_status = "Present"
+
+        student_times[day_key] = {
+            "clockIn": fmt_time(r.clock_in_time),
+            "clockOut": fmt_time(r.clock_out_time) if r.clock_out_time else "",
+        }
+        records.setdefault(student_key, {}).setdefault(day_key, automatic_status)
+
+    schedules = run(
+        "SELECT student_id, start_time, end_time FROM StudentAttendanceSchedule",
+        fetch="all")
+    return jsonify(
+        days=days, year=y, month=m, records=records, clockTimes=clock_times,
+        schedules=[{
+            "studentId": r.student_id,
+            "startTime": r.start_time.strftime("%H:%M"),
+            "endTime": r.end_time.strftime("%H:%M"),
+        } for r in schedules])
+
+
+@app.route("/api/admin/attendance/schedules", methods=["POST"])
+@admin
+def admin_attendance_schedule():
+    d = request.get_json(silent=True) or {}
+    try:
+        sid = int(d.get("student_id"))
+        start_time = dtime.fromisoformat(d.get("start_time", ""))
+        end_time = dtime.fromisoformat(d.get("end_time", ""))
+    except (ValueError, TypeError):
+        return jsonify(success=False, message="Choose a student and valid schedule times."), 400
+    if start_time >= end_time:
+        return jsonify(success=False, message="End time must be after start time."), 400
+
+    ensure_attendance_schedule_table()
+    if not run("SELECT student_id FROM Student WHERE student_id=?", (sid,), "one"):
+        return jsonify(success=False, message="Student not found."), 404
+
+    updated = run(
+        "UPDATE StudentAttendanceSchedule SET start_time=?, end_time=? WHERE student_id=?",
+        (start_time, end_time, sid))
+    if not updated:
+        run(
+            "INSERT INTO StudentAttendanceSchedule (student_id, start_time, end_time) "
+            "VALUES (?, ?, ?)", (sid, start_time, end_time))
+    return jsonify(success=True)
 
 
 @app.route("/api/admin/tasks", methods=["GET", "POST"])
@@ -442,6 +714,20 @@ def admin_tasks():
                fetch="all")
     return jsonify([{"id": r.task_id, "title": r.title, "student": r.name,
                      "due": r.due_date.isoformat(), "status": r.status} for r in rows])
+
+
+@app.route("/api/admin/tasks/<int:tid>/approve", methods=["POST"])
+@admin
+def admin_approve_task(tid):
+    run("UPDATE Task SET status='completed', updated_at=GETDATE() WHERE task_id=?", (tid,))
+    return jsonify(success=True)
+
+
+@app.route("/api/admin/tasks/<int:tid>/reject", methods=["POST"])
+@admin
+def admin_reject_task(tid):
+    run("UPDATE Task SET status='in_progress', updated_at=GETDATE() WHERE task_id=?", (tid,))
+    return jsonify(success=True)
 
 
 @app.route("/api/admin/tasks/<int:task_id>/delete", methods=["POST"])
@@ -479,7 +765,6 @@ def hash_pw(p):
 
 
 def verify_pw(stored, p):
-    """Returns (ok, needs_upgrade). Legacy plain-text rows are accepted once, then re-hashed."""
     s = bytes(stored)
     if s.startswith((b"pbkdf2:", b"scrypt:")):
         return check_password_hash(s.decode("utf-8"), p), False
@@ -505,7 +790,6 @@ def any_user(fn):
 
 
 def run_tx(fn):
-    """Run fn(cursor) in one transaction (commit on success, rollback on error)."""
     conn = get_db_connection()
     if conn is None:
         raise RuntimeError("Database is unavailable. Please try again later.")
@@ -555,7 +839,6 @@ def grade_for(score):
 
 
 def compute_performance(sid):
-    """Last-30-day attendance (weekdays, minus holidays and approved leave) + task completion."""
     today = now_ist().date()
     start = today - timedelta(days=29)
     logins = run("SELECT clock_in_time FROM Attendance WHERE student_id=? "
@@ -577,7 +860,7 @@ def compute_performance(sid):
         d = start + timedelta(days=i)
         if d.weekday() >= 5 or d in holidays or d in leave_days:
             continue
-        if d == today and d not in att_dates:      # today isn't over yet
+        if d == today and d not in att_dates:
             continue
         expected.append(d)
     attended = sum(1 for d in expected if d in att_dates)
@@ -661,12 +944,9 @@ def api_timetable_delete():
 
 # ================================================================ ADMIN: STUDENTS
 def clean_student(d, creating):
-    """Validate student form data. Returns (values_dict, error_message)."""
     v = {k: (d.get(k) or "").strip() for k in
-         ("username", "firstname", "lastname", "email", "mobile_no", "gender", "dob", "city")}
-    password = d.get("password") or ""
-    if creating and not (v["username"] and 3 <= len(v["username"]) <= 100):
-        return None, "Username must be 3-100 characters."
+         ("firstname", "lastname", "email", "mobile_no", "gender", "dob", "city")}
+    
     for k, label, mx in (("firstname", "First name", 50), ("lastname", "Last name", 50),
                          ("city", "City", 50)):
         if not v[k] or len(v[k]) > mx:
@@ -677,18 +957,17 @@ def clean_student(d, creating):
         return None, "Mobile number must be 7-15 digits."
     if v["gender"] not in ("", "Male", "Female", "Other"):
         return None, "Invalid gender."
+        
     if v["dob"]:
         try:
             v["dob"] = date.fromisoformat(v["dob"])
         except ValueError:
             return None, "Invalid date of birth."
     else:
+        if creating:
+            return None, "Date of birth is required to generate the password."
         v["dob"] = None
-    if creating or password:
-        problem = password_problem(password)
-        if problem:
-            return None, problem
-    v["password"] = password
+        
     return v, None
 
 
@@ -711,11 +990,21 @@ def admin_student_create():
     if err:
         return jsonify(success=False, message=err), 400
 
+    # Auto-generate Username and Password
+    v["username"] = v["email"]
+    dob_str = v["dob"].strftime("%d%m%Y") if v["dob"] else "01012000"
+    v["password"] = v["firstname"] + dob_str
+
     def work(cur):
+        cur.execute("SELECT 1 FROM users WHERE username=?", (v["username"],))
+        if cur.fetchone():
+            raise pyodbc.IntegrityError("Username exists")
+
         cur.execute("INSERT INTO users (username, password_hash, role) "
                     "OUTPUT INSERTED.user_id VALUES (?, ?, 'Student')",
                     (v["username"], hash_pw(v["password"])))
         uid = cur.fetchone()[0]
+        
         cur.execute("INSERT INTO Student (user_id, firstname, lastname, email, mobile_no, gender, dob, city) "
                     "VALUES (?,?,?,?,?,?,?,?)",
                     (uid, v["firstname"], v["lastname"], v["email"], v["mobile_no"] or None,
@@ -723,25 +1012,8 @@ def admin_student_create():
     try:
         run_tx(work)
     except pyodbc.IntegrityError:
-        return jsonify(success=False, message="That username or email already exists."), 400
+        return jsonify(success=False, message="That email address is already registered."), 400
     return jsonify(success=True)
-
-@app.route("/student_profile")
-@student
-def student_profile():
-    # Fetch the student's details using your custom run() helper
-    student = run("""
-        SELECT s.student_id, s.firstname, s.lastname, s.email, s.mobile_no, 
-               s.gender, s.dob, s.city, u.username
-        FROM Student s 
-        INNER JOIN users u ON s.user_id = u.user_id 
-        WHERE s.student_id = ?
-    """, (session["student_id"],), "one")
-    
-    if not student:
-        return "Profile not found", 404
-        
-    return render_template("student_profile.html", student=student, username=session["name"])
 
 
 @app.route("/api/admin/student-list/<int:sid>", methods=["PUT"])
@@ -751,17 +1023,20 @@ def admin_student_update(sid):
     if err:
         return jsonify(success=False, message=err), 400
 
+    # Auto-update Username to match Email
+    v["username"] = v["email"]
+
     def work(cur):
+        cur.execute("UPDATE users SET username=? WHERE user_id=(SELECT user_id FROM Student WHERE student_id=?)",
+                    (v["username"], sid))
+        
         cur.execute("UPDATE Student SET firstname=?, lastname=?, email=?, mobile_no=?, gender=?, "
                     "dob=?, city=? WHERE student_id=?",
                     (v["firstname"], v["lastname"], v["email"], v["mobile_no"] or None,
                      v["gender"] or None, v["dob"], v["city"], sid))
+        
         if cur.rowcount == 0:
             return False
-        if v["password"]:
-            cur.execute("UPDATE users SET password_hash=? WHERE user_id="
-                        "(SELECT user_id FROM Student WHERE student_id=?)",
-                        (hash_pw(v["password"]), sid))
         return True
     try:
         found = run_tx(work)
@@ -775,7 +1050,6 @@ def admin_student_update(sid):
 @app.route("/api/admin/student-list/<int:sid>", methods=["DELETE"])
 @admin
 def admin_student_delete(sid):
-    # Deleting the login row cascades to the student and all of their records.
     n = run("DELETE FROM users WHERE user_id=(SELECT user_id FROM Student WHERE student_id=?)", (sid,))
     if not n:
         return jsonify(success=False, message="Student not found."), 404

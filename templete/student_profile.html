@@ -9,84 +9,204 @@
 
 {% block content %}
 <div class="profile-container">
-    
+
     <!-- Left Side: Basic Profile Card -->
     <div class="profile-card">
-        <!-- Using a placeholder image for now -->
-        <img src="https://ui-avatars.com/api/?name={{ student.firstname }}+{{ student.lastname }}&background=2563EB&color=fff&size=140" alt="Student">
+        <img src="https://ui-avatars.com/api/?name={{ student.firstname }}+{{ student.lastname }}&background=2563EB&color=fff&size=140"
+             alt="Student avatar">
         <h2>{{ student.firstname }} {{ student.lastname }}</h2>
         <p>@{{ student.username }}</p>
         <div class="status">
-            <span>Active Student</span>
+            <span><i class="fa-solid fa-circle-check"></i> Active Student</span>
         </div>
     </div>
 
     <!-- Right Side: Detailed Information -->
     <div class="details-card">
-        <h3>Personal Information</h3>
+        
+        <div class="details-header">
+            <h3>Personal Information</h3>
+            <button class="btn btn-primary" onclick="openEditModal()">
+                <i class="fa-solid fa-pen"></i> Edit Profile
+            </button>
+        </div>
+
         <div class="info-grid">
-            
             <div class="info-box">
                 <label>Student ID</label>
                 <span>STU-{{ student.student_id }}</span>
             </div>
             <div class="info-box">
-                <label>Roll Number</label>
-                <span>101</span> <!-- Placeholder -->
+                <label>Username</label>
+                <span>{{ student.username }}</span>
             </div>
             <div class="info-box">
-                <label>Email</label>
+                <label>Email Address</label>
                 <span>{{ student.email }}</span>
             </div>
             <div class="info-box">
                 <label>Mobile</label>
-                <span>{{ student.mobile_no }}</span>
+                <span>{{ student.mobile_no or 'Not set' }}</span>
             </div>
             <div class="info-box">
                 <label>Date of Birth</label>
-                <span>{{ student.dob.strftime('%d %b %Y') if student.dob else 'Not Set' }}</span>
+                <span>{{ student.dob.strftime('%d %b %Y') if student.dob else 'Not set' }}</span>
             </div>
             <div class="info-box">
                 <label>Gender</label>
-                <span>{{ student.gender }}</span>
-            </div>
-            <div class="info-box">
-                <label>Department</label>
-                <span>Computer Science</span> <!-- Placeholder -->
-            </div>
-            <div class="info-box">
-                <label>Semester</label>
-                <span>6th Semester</span> <!-- Placeholder -->
+                <span>{{ student.gender or 'Not set' }}</span>
             </div>
             <div class="info-box">
                 <label>City</label>
                 <span>{{ student.city }}</span>
             </div>
-            <div class="info-box">
-                <label>Admission Year</label>
-                <span>2023</span> <!-- Placeholder -->
-            </div>
-            
         </div>
 
-        <h3>Academic Overview</h3>
+        <h3 style="margin-bottom: 20px;">Academic Overview</h3>
         <div class="stats">
             <div class="stat-card">
-                <i class="fa-solid fa-book"></i>
-                <h2>8.7</h2> <!-- Placeholder -->
-                <p>CGPA</p>
+                <i class="fa-solid fa-chart-line"></i>
+                <div>
+                    <h2>{{ p.overall }}%</h2>
+                    <p>Overall Score</p>
+                </div>
             </div>
             <div class="stat-card">
                 <i class="fa-solid fa-calendar-check"></i>
-                <h2>92%</h2> <!-- Placeholder -->
-                <p>Attendance</p>
+                <div>
+                    <h2>{{ p.attendance_pct }}%</h2>
+                    <p>Attendance</p>
+                </div>
             </div>
             <div class="stat-card">
-                <i class="fa-solid fa-trophy"></i>
-                <h2>12</h2> <!-- Placeholder -->
-                <p>Achievements</p>
+                <i class="fa-solid fa-award"></i>
+                <div>
+                    <h2 class="{% if p.grade in ['A', 'B'] %}text-green{% elif p.grade in ['D', 'F'] %}text-red{% endif %}" style="color: {% if p.grade in ['A','B'] %}#10B981{% elif p.grade in ['D','F'] %}#EF4444{% endif %}">{{ p.grade }}</h2>
+                    <p>Grade</p>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- EDIT PROFILE MODAL -->
+<div id="editProfileModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Edit Personal Information</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editProfileForm">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="editFirst" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="editLast" required>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Email Address</label>
+                        <input type="email" id="editEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile</label>
+                        <input type="text" id="editMobile">
+                    </div>
+                    <div class="form-group">
+                        <label>City</label>
+                        <input type="text" id="editCity" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="editGender">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth</label>
+                        <input type="date" id="editDob">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Data injected from server to populate the form
+    const currentData = {
+        firstname: "{{ student.firstname }}",
+        lastname: "{{ student.lastname }}",
+        email: "{{ student.email }}",
+        mobile_no: "{{ student.mobile_no or '' }}",
+        gender: "{{ student.gender or '' }}",
+        dob: "{{ student.dob.isoformat() if student.dob else '' }}",
+        city: "{{ student.city }}"
+    };
+
+    function openEditModal() {
+        // Populate inputs
+        document.getElementById('editFirst').value = currentData.firstname;
+        document.getElementById('editLast').value = currentData.lastname;
+        document.getElementById('editEmail').value = currentData.email;
+        document.getElementById('editMobile').value = currentData.mobile_no;
+        document.getElementById('editGender').value = currentData.gender;
+        document.getElementById('editDob').value = currentData.dob;
+        document.getElementById('editCity').value = currentData.city;
+        
+        // Show modal
+        document.getElementById('editProfileModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editProfileModal').classList.remove('active');
+    }
+
+    document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveProfileBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const payload = {
+            firstname: document.getElementById('editFirst').value,
+            lastname: document.getElementById('editLast').value,
+            email: document.getElementById('editEmail').value,
+            mobile_no: document.getElementById('editMobile').value,
+            gender: document.getElementById('editGender').value,
+            dob: document.getElementById('editDob').value,
+            city: document.getElementById('editCity').value
+        };
+
+        try {
+            const res = await fetch('/api/update_profile', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) throw new Error(data.message || 'Failed to update profile.');
+            
+            // Reload to reflect changes
+            window.location.reload();
+        } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+        }
+    });
+</script>
 {% endblock %}

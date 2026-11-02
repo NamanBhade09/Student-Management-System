@@ -1,133 +1,137 @@
 {% extends 'base_student.html' %}
 {% block title %}Tasks{% endblock %}
-{% block page_title %}My Tasks{% endblock %}
+{% block page_title %}Tasks{% endblock %}
 {% block breadcrumb %}Tasks{% endblock %}
 
 {% block content %}
-<div class="header-row" style="align-items: center;">
-    <div class="welcome-text">
-        <h2>My tasks</h2>
-        <p>Track work assigned to you and update your progress.</p>
-    </div>
-    <button class="btn btn-primary" onclick="document.getElementById('addTaskForm').style.display='block'"><i class="fa-solid fa-plus"></i> Add personal task</button>
-</div>
+<style>
+    .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+    .page-title { font-size: 22px; font-weight: 700; margin: 0; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; }
+    
+    .btn { padding: 8px 14px; border: 1px solid #d0d7de; background: #ffffff; border-radius: 6px; font-size: 14px; cursor: pointer; color: #1f2328; }
+    .btn:hover { background: #f6f8fa; }
+    .btn-primary { background: #2f6feb; color: #fff; border-color: #2f6feb; }
+    .btn-primary:hover { background: #2557c4; }
 
-<div class="content-card" id="addTaskForm" style="display:none; margin-bottom: 20px;">
-    <h3>Add New Task</h3>
-    <div style="display:flex; gap: 10px; margin-top: 10px;">
-        <input type="text" id="newTaskTitle" maxlength="255" placeholder="Task title..." style="flex:1; padding: 10px; border: 1px solid #E2E8F0; border-radius: 8px;">
-        <button class="btn btn-primary" onclick="submitTask()">Save</button>
-    </div>
-</div>
+    /* Timer Controls */
+    .header-timer { display: flex; align-items: center; gap: 8px; margin-right: 8px; background: #fff; padding: 4px 8px; border-radius: 6px; border: 1px solid #d0d7de; }
+    .timer-text { font-size: 14px; font-weight: 700; color: #1f2328; font-variant-numeric: tabular-nums; display: none; }
+    .timer-text.active { display: inline-block; }
+    .timer-buttons { display: flex; gap: 4px; }
+    .icon-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #d0d7de; background: #ffffff; color: #2f6feb; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.15s; }
+    .icon-btn:hover { background: #eaf2ff; }
+    #playBtn { background: #eaf2ff; color: #2f6feb; border-color: #2f6feb; }
+    #pauseBtn { background: #fff8c5; color: #7d4e00; border-color: #d4a72c; }
+    #stopBtn { background: #ffebe9; color: #cf222e; border-color: #ffcecb; }
+    .task-select { padding: 4px; border: 1px solid #d0d7de; border-radius: 4px; font-size: 12px; max-width: 150px; margin-right: 4px; }
 
-<p id="taskMessage" role="status" aria-live="polite"></p>
+    /* Table */
+    .table-wrap { background: #ffffff; border: 1px solid #d0d7de; border-radius: 8px; overflow-x: auto; }
+    .task-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
+    .task-table thead th { text-align: left; padding: 12px 14px; background: #f6f8fa; border-bottom: 1px solid #d0d7de; font-weight: 600; color: #57606a; white-space: nowrap; }
+    .task-table tbody td { padding: 12px 14px; border-bottom: 1px solid #eaeef2; vertical-align: middle; }
+    .task-table tbody tr:last-child td { border-bottom: none; }
+    .task-table tbody tr:hover { background: #f9fbfd; }
 
-<div class="content-card">
-    <div class="task-list" id="taskList">
-        {% for task in tasks %}
-        <div class="task-item" data-task-id="{{ task.task_id }}" style="background: white; border-bottom: 1px solid #E2E8F0; padding: 15px; display:flex; align-items:center; gap: 15px;">
-            <input type="checkbox" {% if task.status == 'completed' %}checked{% endif %} onclick="toggleTask({{ task.task_id }}, this)">
-            <div class="task-info" style="flex:1;">
-                <strong data-task-title style="{% if task.status == 'completed' %}text-decoration: line-through; color: #94A3B8;{% endif %}">{{ task.title }}</strong>
-                <span data-task-due style="font-size: 0.8rem; color: #64748B;">Due: {{ task.due_date.strftime('%d %b %Y') }}</span>
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .status-pending { background: #fff8c5; color: #7d4e00; }
+    .status-in-progress { background: #ddf4ff; color: #0a3069; }
+    .status-completed { background: #dafbe1; color: #116329; }
+    .status-pending-approval { background: #EFF6FF; color: #2563EB; }
+
+    .empty-state { padding: 40px 20px; text-align: center; color: #57606a; font-size: 14px; display: none; }
+    .empty-state.show { display: block; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; background: rgba(31, 35, 40, 0.45); display: flex; align-items: center; justify-content: center; z-index: 5000; padding: 20px; }
+    .modal.hidden { display: none; }
+    .modal-card { background: #fff; border-radius: 10px; width: 100%; max-width: 520px; padding: 20px 24px 24px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .modal-close { border: none; background: transparent; font-size: 22px; cursor: pointer; color: #57606a; }
+    .modal-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #57606a; margin-bottom: 12px; }
+    .modal-form input, .modal-form select { padding: 8px 10px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; color: #1f2328; outline: none; }
+    .modal-form input:focus, .modal-form select:focus { border-color: #2f6feb; box-shadow: 0 0 0 2px #eaf2ff; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+</style>
+
+<header class="toolbar">
+    <h1 class="page-title">Tasks</h1>
+    
+    <div class="toolbar-actions">
+        <!-- INLINE TIMER CONTROLS -->
+        <div class="header-timer">
+            <select id="timerTaskSelect" class="task-select">
+                <option value="">Select task to track...</option>
+            </select>
+            <span id="timerDisplay" class="timer-text">00:00:00</span>
+            <div id="timerButtons" class="timer-buttons">
+                <button id="playBtn" class="icon-btn" title="Start Timer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"></polygon></svg>
+                </button>
             </div>
-            <span class="badge {{ task.status }}" data-task-status>{{ task.status | replace('_', ' ') | title }}</span>
         </div>
-        {% else %}
-        <div class="empty-state"><p>No tasks found.</p></div>
-        {% endfor %}
+
+        <button id="addTaskBtn" class="btn btn-primary">+ Add Task</button>
+    </div>
+</header>
+
+<section class="table-wrap">
+    <table class="task-table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Task</th>
+                <th>Completed On</th>
+                <th>Start Date</th>
+                <th>Due Date</th>
+                <th>Estimated Time</th>
+                <th>Hours Logged</th>
+                <th>Assigned To</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="taskTableBody">
+            <!-- Rendered by JS -->
+        </tbody>
+    </table>
+    <div id="emptyState" class="empty-state">
+        No tasks yet. Click <strong>+ Add Task</strong> to create one.
+    </div>
+</section>
+
+<!-- MODAL -->
+<div id="taskModal" class="modal hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add Task</h2>
+            <button class="modal-close" id="modalClose">&times;</button>
+        </div>
+        <form id="taskForm" class="modal-form">
+            <input type="hidden" id="taskId" />
+            <label>Task Name *
+                <input type="text" id="taskTitle" required placeholder="e.g. Fix login bug" />
+            </label>
+            <label>Assigned To
+                <select id="taskAssignee">
+                    <option value="">Select a student...</option>
+                </select>
+            </label>
+            <div class="form-row">
+                <label>Start Date <input type="date" id="taskStart" disabled title="Automatically set to today" /></label>
+                <label>Due Date <input type="date" id="taskDue" /></label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" id="cancelBtn">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Task</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    async function submitTask() {
-        const title = document.getElementById('newTaskTitle').value;
-        const message = document.getElementById('taskMessage');
-        if (!title.trim()) {
-            message.textContent = "Enter a task title.";
-            return;
-        }
-        const button = document.querySelector('#addTaskForm button');
-        button.disabled = true;
-        try {
-            const res = await fetch('/api/add_task', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({title: title})
-            });
-            const result = await res.json();
-            if (!res.ok || !result.success) throw new Error(result.message || "Could not add task.");
-            document.querySelector('#taskList .empty-state')?.remove();
-            const row = createTaskRow(result.task_id, title.trim(), result.due_date);
-            document.getElementById('taskList').appendChild(row);
-            document.getElementById('newTaskTitle').value = '';
-            message.textContent = "Task added.";
-        } catch (error) {
-            message.textContent = error.message || "Server error. Please try again.";
-        } finally {
-            button.disabled = false;
-        }
-    }
-
-    function createTaskRow(id, title, dueDate) {
-        const row = document.createElement('div');
-        row.className = 'task-item';
-        row.dataset.taskId = id;
-        row.style.cssText = 'background:white;border-bottom:1px solid #E2E8F0;padding:15px;display:flex;align-items:center;gap:15px;';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.addEventListener('click', () => toggleTask(id, checkbox));
-
-        const info = document.createElement('div');
-        info.className = 'task-info';
-        info.style.flex = '1';
-        const taskTitle = document.createElement('strong');
-        taskTitle.dataset.taskTitle = '';
-        taskTitle.textContent = title;
-        const due = document.createElement('span');
-        due.dataset.taskDue = '';
-        due.style.cssText = 'font-size:0.8rem;color:#64748B;';
-        due.textContent = `Due: ${new Date(`${dueDate}T00:00:00`).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})}`;
-        info.append(taskTitle, due);
-
-        const status = document.createElement('span');
-        status.className = 'badge pending';
-        status.dataset.taskStatus = '';
-        status.textContent = 'Pending';
-        row.append(checkbox, info, status);
-        return row;
-    }
-
-    function updateTaskRow(row, completed) {
-        const title = row.querySelector('[data-task-title]');
-        const badge = row.querySelector('[data-task-status]');
-        title.style.textDecoration = completed ? 'line-through' : '';
-        title.style.color = completed ? '#94A3B8' : '';
-        badge.className = `badge ${completed ? 'completed' : 'pending'}`;
-        badge.textContent = completed ? 'Completed' : 'Pending';
-    }
-
-    async function toggleTask(id, checkbox) {
-        const status = checkbox.checked ? 'completed' : 'pending';
-        const message = document.getElementById('taskMessage');
-        const row = checkbox.closest('[data-task-id]');
-        checkbox.disabled = true;
-        try {
-            const response = await fetch('/api/update_task', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({task_id: id, status: status})
-            });
-            const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || "Could not update task.");
-            updateTaskRow(row, status === 'completed');
-            message.textContent = "Task status updated.";
-        } catch (error) {
-            checkbox.checked = !checkbox.checked;
-            checkbox.disabled = false;
-            message.textContent = error.message || "Server error. Please try again.";
-        }
-    }
-</script>
+<script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
 {% endblock %}

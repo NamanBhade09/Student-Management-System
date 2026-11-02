@@ -3,107 +3,266 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Student Management – Admin</title>
+  <title>Campus Portal - Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashborad_admin.css') }}">
 </head>
 <body>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="brand">EduManage<small>Admin panel</small></div>
-    <nav id="nav">
-      <button data-page="dashboard" class="active">Dashboard</button>
-      <button data-page="leaves">Leave approvals</button>
-      <button data-page="attendance">Attendance</button>
-      <button data-page="tasks">Tasks</button>
-      <button data-page="holidays">Holidays</button>
-      <button data-page="students">Students</button>
-      <button data-page="password">Password</button>
-      <a href="/logout" style="display:block; padding: 12px 20px; color: #ff5e5e; text-decoration: none; font-weight: bold; margin-top: 20px;">Logout</a>
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-building-columns"></i></div>
+      <div class="brand-text">
+        <h2>Campus Portal</h2>
+        <span>ADMIN WORKSPACE</span>
+      </div>
+      <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle"
+              aria-label="Open navigation menu" aria-controls="nav" aria-expanded="false">
+        <i class="fa-solid fa-bars" aria-hidden="true"></i>
+        <span>Menu</span>
+      </button>
+    </div>
+    
+    <nav class="nav-menu" id="nav">
+      <button data-page="dashboard" class="nav-item active"><i class="fa-solid fa-house"></i> Dashboard</button>
+      <button data-page="leaves" class="nav-item"><i class="fa-regular fa-calendar-xmark"></i> Leave Approvals</button>
+      <button data-page="attendance" class="nav-item"><i class="fa-solid fa-clock-rotate-left"></i> Attendance</button>
+      <button data-page="tasks" class="nav-item"><i class="fa-solid fa-list-check"></i> Tasks</button>
+      <button data-page="holidays" class="nav-item"><i class="fa-regular fa-calendar-days"></i> Holidays</button>
+      <button data-page="students" class="nav-item"><i class="fa-solid fa-users"></i> Students</button>
+      <button data-page="password" class="nav-item"><i class="fa-solid fa-key"></i> Security</button>
     </nav>
+    
+    <div class="sidebar-bottom">
+      <a href="/logout" class="nav-item logout-link">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </a>
+    </div>
   </aside>
 
+  <!-- MAIN CONTENT -->
   <main class="main">
-    <header class="topbar"><h1 id="pageTitle">Dashboard</h1><span id="todayLabel"></span><span id="adminMessage" role="status" aria-live="polite"></span></header>
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="pageTitle">Dashboard</h1>
+        <span class="breadcrumb-sep">Admin / <span id="pageBreadcrumb">Dashboard</span></span>
+      </div>
+      <div class="topbar-right">
+        <span id="todayLabel" style="font-size:0.85rem; color:#64748B; font-weight:500;"></span>
+      </div>
+    </header>
 
+    <!-- Dashboard -->
     <section id="dashboard" class="page active">
       <div class="stats" id="stats"></div>
-      <div class="card"><h2>Pending leave requests</h2><div id="dashLeaves"></div></div>
-    </section>
-
-    <section id="leaves" class="page">
-      <div class="card"><table><thead><tr>
-        <th>Student</th><th>Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th>
-      </tr></thead><tbody id="leaveBody"></tbody></table></div>
-    </section>
-
-    <section id="attendance" class="page">
       <div class="card">
-        <div class="bar">
-          <label>Month <input type="month" id="attMonth"></label>
-          <span class="legend">Select a cell to cycle through Present, Absent, Late, Half-day and unset.</span>
-        </div>
-        <div class="scroll"><table id="attTable" class="att"></table></div>
+        <h2>Currently Clocked In</h2>
+        <div id="activeAttendance"></div>
+      </div>
+      <div class="card">
+        <h2>Pending Leave Requests</h2>
+        <div id="dashLeaves"></div>
       </div>
     </section>
 
+    <!-- Leaves -->
+    <section id="leaves" class="page">
+      <div class="card">
+        <div class="bar" style="justify-content: space-between;">
+          <h2 style="margin:0;">All Leave Requests</h2>
+          <select id="leaveFilter" class="form-group">
+            <option value="All">All Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Student</th><th>Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="leaveBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Attendance -->
+    <section id="attendance" class="page">
+      <div class="card">
+        <div class="bar">
+          <label style="font-weight:600; font-size:0.9rem;">Month: <input type="month" id="attMonth" style="margin-left:8px;"></label>
+          <label style="font-weight:600; font-size:0.9rem;">Student:
+            <select id="attendanceStudent" style="margin-left:8px;">
+              <option value="">Choose student</option>
+            </select>
+          </label>
+          <span class="legend">Attendance is loaded from the database. Late and Half-day are calculated from each student's schedule.</span>
+        </div>
+        <div class="scroll">
+          <table id="attTable" class="att"></table>
+        </div>
+        <div class="attendance-legend" aria-label="Attendance status meanings">
+          <span><strong class="P">P</strong> Present</span>
+          <span><strong class="A">A</strong> Absent</span>
+          <span><strong class="L">L</strong> Late</span>
+          <span><strong class="H">H</strong> Half-day</span>
+          <span><strong>·</strong> No record</span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Student Clock-in Schedules</h2>
+        <p class="legend schedule-help">Set each student's earliest clock-in and expected clock-out. Clock-in before the start time is blocked; later arrivals are marked Late, and clock-outs before the end time are marked Half-day. If both rules apply, Half-day takes precedence.</p>
+        <div class="scroll">
+          <table class="att-schedule">
+            <thead><tr><th>Student</th><th>Start Time</th><th>End Time</th><th>Action</th></tr></thead>
+            <tbody id="attScheduleTable">
+              <tr>
+                <td><select id="scheduleStudent"><option value="">Choose student</option></select></td>
+                <td><input type="time" id="scheduleStart" aria-label="Student start time"></td>
+                <td><input type="time" id="scheduleEnd" aria-label="Student end time"></td>
+                <td><button class="btn sm" type="button" id="saveSchedule" disabled>Save</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Attendance Records</h2>
+        <p class="legend schedule-help">Clock-in and clock-out times recorded from student attendance.</p>
+        <div class="scroll">
+          <table class="att-log">
+            <thead><tr><th>Student</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Status</th></tr></thead>
+            <tbody id="attLogTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tasks -->
     <section id="tasks" class="page">
       <div class="card">
         <form id="taskForm" class="bar">
           <select id="taskStudent" required><option value="">Choose student</option></select>
-          <input id="taskTitle" placeholder="New task" maxlength="255" required>
-          <input id="taskDescription" placeholder="Description (optional)">
+          <input id="taskTitle" placeholder="New task title" maxlength="255" required style="flex:1;">
+          <input id="taskDescription" placeholder="Description (optional)" style="flex:1;">
           <input id="taskDue" type="date" required>
-          <button class="btn" type="submit">Assign task</button>
+          <button class="btn" type="submit">Assign Task</button>
         </form>
-        <table><thead><tr><th>Task</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody id="taskBody"></tbody></table>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Task</th><th>Due</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="taskBody"></tbody>
+        </table>
       </div>
     </section>
 
+    <!-- Holidays -->
     <section id="holidays" class="page">
       <div class="card">
-        <div class="bar">
-          <button class="btn ghost" id="prev">&#8249;</button>
-          <strong id="holMonth"></strong>
-          <button class="btn ghost" id="next">&#8250;</button>
+        <div class="bar" style="justify-content: center; gap: 20px;">
+          <button class="btn ghost" id="prev"><i class="fa-solid fa-chevron-left"></i></button>
+          <strong id="holMonth" style="font-size:1.2rem; min-width:150px; text-align:center;"></strong>
+          <button class="btn ghost" id="next"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
         <div class="cal-head"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div></div>
         <div id="holGrid" class="cal-grid"></div>
       </div>
     </section>
 
+    <!-- Students -->
     <section id="students" class="page">
       <div class="card">
-        <h2 id="stuFormTitle">Add student</h2>
-        <form id="stuForm" class="bar">
-          <input id="sUser" placeholder="Username" maxlength="100" required>
-          <input id="sPass" type="password" placeholder="Password (min 8)" maxlength="128" autocomplete="new-password" required>
-          <input id="sFirst" placeholder="First name" maxlength="50" required>
-          <input id="sLast" placeholder="Last name" maxlength="50" required>
-          <input id="sEmail" type="email" placeholder="Email" maxlength="100" required>
-          <input id="sMobile" placeholder="Mobile (digits)" maxlength="15">
-          <select id="sGender"><option value="">Gender</option><option>Male</option><option>Female</option><option>Other</option></select>
-          <label>DOB <input id="sDob" type="date"></label>
-          <input id="sCity" placeholder="City" maxlength="50" required>
-          <button class="btn" type="submit" id="stuSubmit">Add student</button>
-          <button class="btn ghost" type="button" id="stuCancel" hidden>Cancel</button>
-        </form>
-      </div>
-      <div class="card">
-        <table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>City</th><th></th></tr></thead><tbody id="stuBody"></tbody></table>
+        <div class="bar" style="justify-content: space-between; margin-bottom: 20px;">
+          <div class="search-bar" style="margin-bottom:0;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="studentSearch" placeholder="Search by name, email...">
+          </div>
+          <button class="btn" id="btnAddStudent"><i class="fa-solid fa-plus"></i> Add Student</button>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>Email (Username)</th><th>City</th><th>Action</th></tr></thead>
+          <tbody id="stuBody"></tbody>
+        </table>
       </div>
     </section>
 
+    <!-- Password -->
     <section id="password" class="page">
-      <div class="card" style="max-width:420px">
-        <h2>Change my password</h2>
-        <form id="pwForm" style="display:grid;gap:10px">
-          <input id="curPw" type="password" placeholder="Current password" autocomplete="current-password" required>
-          <input id="newPw" type="password" placeholder="New password (min 8)" autocomplete="new-password" required>
-          <input id="confPw" type="password" placeholder="Confirm new password" autocomplete="new-password" required>
-          <button class="btn" type="submit">Update password</button>
+      <div class="card" style="max-width:480px">
+        <h2>Change My Password</h2>
+        <form id="pwForm" style="display:flex; flex-direction:column; gap:16px;">
+          <input id="curPw" type="password" placeholder="Current password" required>
+          <input id="newPw" type="password" placeholder="New password (min 8)" required>
+          <input id="confPw" type="password" placeholder="Confirm new password" required>
+          <button class="btn" type="submit" style="margin-top:8px;">Update Password</button>
         </form>
       </div>
     </section>
   </main>
+
+  <!-- Add/Edit Student Modal -->
+  <div id="studentModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="stuFormTitle">Add Student</h2>
+        <button class="modal-close" id="closeModalBtn">&times;</button>
+      </div>
+      <form id="stuForm">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>First Name</label>
+              <input id="sFirst" placeholder="e.g. John" maxlength="50" required>
+            </div>
+            <div class="form-group">
+              <label>Last Name</label>
+              <input id="sLast" placeholder="e.g. Doe" maxlength="50" required>
+            </div>
+            
+            <!-- REMOVED USERNAME AND PASSWORD INPUTS HERE -->
+
+            <div class="form-group full-width">
+              <label>Email (Also used as Username)</label>
+              <input id="sEmail" type="email" placeholder="student@example.com" maxlength="100" required>
+            </div>
+            <div class="form-group">
+              <label>Mobile</label>
+              <input id="sMobile" placeholder="Mobile number" maxlength="15">
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input id="sCity" placeholder="City" maxlength="50" required>
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select id="sGender">
+                <option value="">Select</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Date of Birth (Required)</label>
+              <input id="sDob" type="date" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn ghost" id="cancelStuBtn">Cancel</button>
+          <button type="submit" class="btn" id="stuSubmit">Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="{{ url_for('static', filename='js/dashboard_admin.js') }}"></script>
 </body>
